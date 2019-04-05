@@ -69,7 +69,7 @@ https://www.electrokit.com/produkt/arduino-leonardo-ethernet-med-poe/
 
 * Install arduino IDE https://www.arduino.cc/en/Main/Software
 
-* Clone the repository and copy lin.cpp and lin.h https://github.com/AleksandarFilipov/LIN to you arduino libray (pick your library folder name) folder. (Inspration: ~/arduino/arduino-1.8.5/libraries/[your libaray])
+* Clone the repository and copy lin.cpp and lin.h https://github.com/AleksandarFilipov/LIN to you arduino library (pick your library folder name) folder. (Inspration: ~/arduino/arduino-1.8.5/libraries/[your libaray])
 
 * Open the linbus/linbus.ino file in arduino ide. Select propriate port from the tools menu and the upload the software.
 
