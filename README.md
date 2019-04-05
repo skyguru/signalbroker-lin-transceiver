@@ -158,7 +158,7 @@ sudo tcpdump udp port 3000 -vv -X
 ```
 
 ## Nice to know
-In slave mode the arduino keeps a write buffer which it writes every time the master scheduler queries it. This buffer is never cleared (the same reasoning goes for the signal server), so in practice, if you tampered with the wrong signal you should first restart the signal server and then the arduino.
+In slave mode the arduino keeps a write buffer which it writes every time the master scheduler queries it. This buffer is never cleared (the same reasoning goes for the signal server), so in practice, if you tampered with the wrong signal you should restart the signal server which will reset the arduino.
 
 ## References
 
