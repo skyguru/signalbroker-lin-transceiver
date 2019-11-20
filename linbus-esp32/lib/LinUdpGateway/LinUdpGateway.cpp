@@ -6,6 +6,9 @@ LinUdpGateway::LinUdpGateway(HardwareSerial &serial, Config &config, Records &re
 {
 }
 
+/**
+ * @brief Init the gateway, with lin-serialport and the udp-client conifg 
+ * */
 void LinUdpGateway::init()
 {
     _lin.begin(19200);
@@ -13,6 +16,7 @@ void LinUdpGateway::init()
 
     if (_udpClient.connect(_config->serverIp(), _config->hostPort()))
     {
+        Serial.println("Connected to hostport");
         // Callback method when package arrives on udp
         _udpClient.onPacket([&](AsyncUDPPacket packet) {
             Serial.print("UDP Packet Type: ");
@@ -31,74 +35,93 @@ void LinUdpGateway::init()
             Serial.write(packet.data(), packet.length());
             Serial.println();
 
-            if (packet.length() > _packetBuffer.size())
-            {
-                memcpy(_packetBuffer.data(), packet.data(), _packetBuffer.size());
-                packetBufferLength = _packetBuffer.size();
-            }
-            else
-            {
-                memcpy(_packetBuffer.data(), packet.data(), packet.length());
-                packetBufferLength = packet.length();
-            }
+            _packetBufferLength = packet.length() > _packetBuffer.size() ? _packetBuffer.size() : packet.length();
+            memcpy(&_packetBuffer, packet.data(), _packetBufferLength);
 
             _config->incrementRxOverUdp();
+            newData = true;
+        });
+    }
 
+    if (_udpListen.listen(_config->clientPort()))
+    {
+        Serial.printf("Connected to listenport: %d\n", _config->clientPort());
+        // Callback method when package arrives on udp
+        _udpListen.onPacket([&](AsyncUDPPacket packet) {
+            Serial.print("UDP Packet Type: ");
+            Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
+            Serial.print(", From: ");
+            Serial.print(packet.remoteIP());
+            Serial.print(":");
+            Serial.print(packet.remotePort());
+            Serial.print(", To: ");
+            Serial.print(packet.localIP());
+            Serial.print(":");
+            Serial.print(packet.localPort());
+            Serial.print(", Length: ");
+            Serial.print(packet.length());
+            Serial.print(", Data: ");
+            Serial.write(packet.data(), packet.length());
+            Serial.println();
+
+            _packetBufferLength = packet.length() > _packetBuffer.size() ? _packetBuffer.size() : packet.length();
+            memcpy(&_packetBuffer, packet.data(), _packetBufferLength);
+
+            _config->incrementRxOverUdp();
             newData = true;
         });
     }
 }
 
+/**
+ * @brief Write linframe-header (includes break, synch & id)
+ * @param id - Frame id on linbus
+ * */
 void LinUdpGateway::writeHeader(uint8_t id)
 {
-    uint8_t echo[2];
+    std::array<uint8_t, 2> echo;
     _lin.serialBreak();                          // Generate the low signal that exceeds 1 char.
-    _lin.serial.write(0x55);                     // Sync byte
+    _lin.serial.write(SYN_FIELD);                // Sync byte
     _lin.serial.write(_lin.addrParity(id) | id); // ID byte
 
     // lin transiver will echo back, just consume the data.
-    _lin.serial.readBytes(echo, 2);
+    _lin.serial.readBytes(echo.data(), echo.size());
 }
 
 /**
- *  find startposition look for BREAK followed BY SYN_FIELD
- *  we expect this to be the header if it's not read bytes until conditions are met.
- *  we now should have BREAK, SYN_FIELD followed by ID.
+ *  @brief Find startposition look for BREAK followed BY SYN_FIELD
+ *          we expect this to be the header if it's not read bytes until conditions are met.
+ *          we now should have BREAK, SYN_FIELD followed by ID.
  * */
 uint8_t LinUdpGateway::synchHeader()
 {
     int bytesExpected = 3;
-    uint8_t synchbuffer[bytesExpected];
+    std::array<uint8_t, 3> synchBuffer;
 
-    int bytesReceived = _lin.serial.readBytes(synchbuffer, bytesExpected);
+    int bytesReceived = _lin.serial.readBytes(synchBuffer.data(), bytesExpected);
     int synchTries = 0;
 
-    uint8_t frameBreak = synchbuffer[0];
-    uint8_t frameSynch = synchbuffer[1];
-    uint8_t frameId = synchbuffer[2];
-
-    if (bytesReceived != bytesExpected)
-    {
-        std::array<char, 100> message;
-        sprintf(message.data(), "Timeout1: Bytes expected: %d, bytes recieved: %d\n", bytesExpected, bytesReceived);
-        _config->log(message.data());
-    }
+    byte frameBreak = synchBuffer[0];
+    byte frameSynch = synchBuffer[1];
+    byte frameId = synchBuffer[2];
 
     boolean match = (frameBreak == BREAK) && (frameSynch == SYN_FIELD);
-
     while (!match)
     {
-        bytesExpected = 1;
+        int bytesExpected = 1;
+
         // align the buffer.
         frameBreak = frameSynch;
         frameSynch = frameId;
         bytesReceived = _lin.serial.readBytes(&frameId, bytesExpected);
 
+        Serial.printf("FrameBreak: %d, FrameSynch: %d, FrameId: %d\n", frameBreak, frameSynch, frameId);
+
         if (bytesReceived != bytesExpected)
         {
-            char message[100];
-            sprintf(message, "Timeout2: Bytes expected: %d, bytes recieved: %d, synchTries: %d\n", bytesExpected, bytesReceived, synchTries);
-            _config->log(message);
+            std::array<char, 100> message;
+            sprintf(message.data(), "Timeout2: Bytes expected: %d, bytes recieved: %d, synchTries: %d", bytesExpected, bytesReceived, synchTries);
+            _config->log(message.data());
         }
         match = (frameBreak == BREAK) && (frameSynch == SYN_FIELD);
         synchTries++;
@@ -111,13 +134,17 @@ uint8_t LinUdpGateway::synchHeader()
         _config->setSynchedCount(synchTries);
         _config->incrementUnsynchedPackages();
 
-        std::array<char,100> message;
-        sprintf(message.data(), "Synch count is %d frameId = 0x%d\n", synchTries, (frameId & 0x3F));
+        std::array<char, 100> message;
+        sprintf(message.data(), "Synch count is %d frameId = 0x%d", synchTries, (frameId & 0x3F));
         _config->log(message.data());
     }
     return frameId;
 }
 
+/**
+ * @brief We are reading frame on linbus and send the frame over UDP
+ * @param id - Frame id on linbus
+ * */
 void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
 {
     std::array<uint8_t, 10> readbuffer;
@@ -128,7 +155,7 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
     uint8_t payload_size = 0;
 
     _lin.serial.setTimeout(TRAFFIC_TIMEOUT);
-    readbuffer[0] = (uint8_t)(_lin.addrParity(id) | id);
+    readbuffer.at(0) = (uint8_t)(_lin.addrParity(id) | id);
 
     Record *record = _records->getRecordById(id);
 
@@ -154,8 +181,6 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
 
             if (crc_valid)
             {
-                Serial.write(readbuffer.data(), readbuffer.size());
-                Serial.println();
                 sendOverUdp(id, &readbuffer[1], payload_size);
             }
         }
@@ -165,15 +190,26 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
     _lin.serial.setTimeout(DEFAULT_LIN_TIMEOUT);
 }
 
+/**
+ * @brief Send linframe data on UDP
+ * @param id - Frame id on linbus
+ * @note We are sending a lin-id with empty bytes when we want to pull signals from a slave
+ * */
 void LinUdpGateway::sendOverUdp(uint8_t id)
 {
-    sendOverUdp(id, 0, 0);
+    uint8_t empty = 0;
+    sendOverUdp(id, &empty, 0);
 }
 
+/**
+ * @brief Send linframe data on UDP
+ * @param id - Frame id on linbus
+ * @param payload - Pointer to the buffer that's are going to send
+ * @param size - Size of payload 
+ * */
 void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
 {
-    uint8_t toServer[]{
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    std::array<uint8_t, 13> toServer{};
 
     // If payload-size is bigger then total size of server
     if (size > 11)
@@ -188,15 +224,19 @@ void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
     for (int i = 0; i < size; i++)
     {
         *(payloadStart + i) = payload[size - 1 - i];
-        // *(payloadStart + i) = payload[i];
     }
 
     AsyncUDPMessage message{};
-    message.write(toServer, 5 + size);
+    message.write(toServer.data(), size + 5);
+    // message.write(toServer.data(), 13);
     _udpClient.send(message);
     _config->incrementTxOverUdp();
 }
 
+/**
+ * @brief Send record info over serial (LIN-serialport)
+ * @param record: which record you want to send
+ * */
 void LinUdpGateway::sendOverSerial(Record *record)
 {
     std::array<uint8_t, 10> sendbuffer;
@@ -204,11 +244,12 @@ void LinUdpGateway::sendOverSerial(Record *record)
     uint8_t id = record->id();
     sendbuffer[0] = _lin.addrParity(id) | id;
     uint8_t *sendbuffer_payload = &sendbuffer[1];
+
     for (uint8_t i = 0; i < record->size(); i++)
     {
-        // sendbuffer_payload[i] = *(record->writeCache() + (record->size() - 1 - i));
         sendbuffer_payload[i] = record->writeCache()->at(record->size() - 1 - i);
-     }
+    }
+
     uint8_t *crc = &sendbuffer[1 + record->size()];
     if ((id == 60) || (id == 61))
     {
@@ -225,39 +266,43 @@ void LinUdpGateway::sendOverSerial(Record *record)
     _config->incrementTxOverLin();
 }
 
+/**
+ * @brief
+ * @param record:
+ * */
 void LinUdpGateway::cacheUdpMessage(Record *record)
 {
-    do
+    if (_packetBufferLength >= 4)
     {
-        if (packetBufferLength >= 4)
+        Record *updateRecord = record;
+        if (_packetBuffer[3] != updateRecord->id())
         {
-            Record *updateRecord = record;
-            if (_packetBuffer[3] != updateRecord->id())
-            {
-                updateRecord = _records->getRecordById(_packetBuffer[3]);
-            }
-            if (updateRecord == nullptr)
-            {
-                std::array<char, 100> logMessage{};
-                sprintf(logMessage.data(), "Missmatch id: 0x%d does not exits", _packetBuffer[3]);
-                _config->log(logMessage.data());
-            }
-            else
-            {
-                memcpy(updateRecord->writeCache(), &_packetBuffer[5], updateRecord->size());
-                updateRecord->setCacheValid(true);
-            }
+            updateRecord = _records->getRecordById(_packetBuffer[3]);
+        }
+        if (updateRecord == nullptr)
+        {
+            std::array<char, 100> logMessage{};
+            sprintf(logMessage.data(), "Missmatch id: 0x%d does not exits", _packetBuffer[3]);
+            _config->log(logMessage.data());
         }
         else
         {
-            if ((packetBufferLength < 4) && (packetBufferLength != 0))
-            {
-                _config->log("Signalserver payload too short");
-            }
+            memcpy(updateRecord->writeCache(), &_packetBuffer[5], updateRecord->size());
+            updateRecord->setCacheValid(true);
         }
-    } while (packetBufferLength != 0);
+    }
+    else
+    {
+        if ((_packetBufferLength < 4) && (_packetBufferLength != 0))
+        {
+            _config->log("Signalserver payload too short");
+        }
+    }
 }
 
+/**
+ * @brief Running the selected node continuously
+ * */
 void LinUdpGateway::run()
 {
     switch (_config->nodeMode())
@@ -273,32 +318,40 @@ void LinUdpGateway::run()
     }
     break;
     default:
-        break;
+    {
+        _config->log("You heaven't specified node, please select node in the signalbroker and restart.");
+        delay(500);
+    }
+    break;
     }
 }
 
+/**
+ * @brief Running node as a master
+ * */
 void LinUdpGateway::runMaster()
 {
     // wait for server/automatic or manually to write arbitration frame
-    if (packetBufferLength >= 5)
+    if (_packetBufferLength >= 5)
     {
+        // The id of linframe is stored in byte 3 of packetBuffer
         uint8_t id = _packetBuffer[3];
+
+        // Find record with the id from packetbuffer
         Record *record = _records->getRecordById(id);
-        boolean validpayload = ((packetBufferLength == 5) || (packetBufferLength == (5 + record->size())));
+
+        boolean validpayload = ((_packetBufferLength == 5) || (_packetBufferLength == (5 + record->size())));
+
         if (validpayload)
         {
-            if (packetBufferLength == 5)
+            if (_packetBufferLength == 5)
             {
-                //this is an arbiration frame
+                // this is an arbitration frame
                 if (!record->master())
                 {
                     writeHeader(id);
                     // now consume the result
                     readLinAndSendOnUdp(id);
-                }
-                else
-                {
-                    // ignore this - a full frame will arrive on upd. Once it does we write it (length > 5)
                 }
             }
             else
@@ -311,25 +364,29 @@ void LinUdpGateway::runMaster()
         }
         else
         {
-            _config->log("Incorrect data recieved over udp id");
+            _config->log("Run Master: Incorrect data recieved over udp id");
         }
     }
 }
 
+/**
+ * @brief Running node as a slave 
+ * */
 void LinUdpGateway::runSlave()
 {
     if (_lin.serial.available())
     {
+        // Get id including parity bits
         uint8_t idbyte = synchHeader();
 
-        //Now check parity
-        //remove parity bits and then add them again. Check if it mathes whats expected
-        uint8_t id = idbyte & 0x3f;
-        if ((_lin.addrParity(id) | id) == idbyte)
+        // To check the parity we remove the parity bits and then add them again
+        uint8_t id = idbyte & 0x3f; // Remove parity bits
+
+        if ((_lin.addrParity(id) | id) == idbyte) // Add them again and see if it match
         {
             // send this arbitration frame to the server.
             Record *record = _records->getRecordById(id);
-            // this works!!
+
             if (record->master() || (!record->cacheValid()))
             {
                 sendOverUdp(id);
@@ -350,7 +407,7 @@ void LinUdpGateway::runSlave()
         }
         else
         {
-            _config->log("parity failure - do nothing ");
+            _config->log("Run Slave: Parity failure - do nothing ");
         }
     }
 }
