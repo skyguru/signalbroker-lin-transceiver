@@ -38,12 +38,13 @@ private:
 
 private:
     AsyncUDP _udpClient;
+    AsyncUDP _udpListen;
     Lin _lin;
     Config *_config;
     Records *_records;
 
     std::array<uint8_t, UDP_TX_PACKET_MAX_SIZE_CUSTOM> _packetBuffer{};
-    int packetBufferLength;
+    int _packetBufferLength;
 
     static constexpr uint8_t BREAK = 0x00;
     static constexpr uint8_t SYN_FIELD = 0x55;
