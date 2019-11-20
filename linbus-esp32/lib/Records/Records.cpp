@@ -1,20 +1,14 @@
 #include "Records.hpp"
 
-Records::Records(int size)
-    : _recordEntries{size}
+Records::Records()
 {
-    // TODO: I don't think we need to initialize the vector with empty objects, we just need to reserve the space for performence issue
-
-    // Initialize the vector with empty objects
-    for (int number = 0; number < size; number++)
-    {
-        _recordList.push_back(Record{});
-    }
+    // Reserving 20-objects
+    _recordList.reserve(20);
 }
 
 /**
- * @breif: Returns the record on given index
- * @param: index - index of the vector
+ * @brief Returns the record on given index
+ * @param index - index of the vector
  * */
 Record *Records::getRecord(int index)
 {
@@ -23,8 +17,8 @@ Record *Records::getRecord(int index)
 }
 
 /**
- * @breif: Returns a pointer to a record, if the id is valid
- * @param: id - the id of the record you are searching for
+ * @brief Returns a pointer to a record, if the id is valid
+ * @param id - the id of the record you are searching for
  * */
 Record *Records::getRecordById(int id)
 {
@@ -41,10 +35,18 @@ Record *Records::getRecordById(int id)
 }
 
 /**
- * @breif: Add a record to the vector
- * @params: record - Record you want to add
+ * @brief Add a record to the vector
+ * @param record - Record you want to add
  * */
 void Records::add(Record record)
 {
     _recordList.push_back(record);
+}
+
+/**
+ * @brief Returning the last element from the array of Records
+ * */
+Record *Records::getLastElement()
+{
+    return &_recordList.back();
 }
