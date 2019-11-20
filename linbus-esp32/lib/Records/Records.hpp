@@ -8,15 +8,14 @@
 class Records
 {
 public:
-    Records(int size);
+    Records();
 
     Record *getRecord(int index);
     Record *getRecordById(int id);
 
     void add(Record record);
-    int recordEntries() { return _recordEntries; }
+    Record *getLastElement();
 
 private:
     std::vector<Record> _recordList;
-    int _recordEntries;
 };
