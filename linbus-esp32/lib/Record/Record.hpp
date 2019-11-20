@@ -1,5 +1,7 @@
 
 #include <cstdint>
+#include <array>
+#include <Arduino.h>
 
 class Record
 {
@@ -11,19 +13,21 @@ public:
     uint8_t id() const { return _id; }
     uint8_t size() const { return _size; }
     uint8_t master() const { return _master; }
-    uint8_t *writeCache() { return _write_cache; } ;
-    bool cacheValid() const { return _cache_valid; }
+    bool cacheValid() const { return _cacheValid; }
+    uint8_t getWriteCacheByteByIndex(int index);
+    std::array<uint8_t, 8> *writeCache();
 
     void setId(uint8_t id);
     void setSize(uint8_t size);
     void setMaster(uint8_t master);
-    void setWriteCache(uint8_t *writeCache);
     void setCacheValid(bool cacheValid);
+    void setWriteCache(std::array<uint8_t, 8> *writeCache);
 
 private:
     uint8_t _id;
     uint8_t _size;
     uint8_t _master;
-    uint8_t _write_cache[8];
-    bool _cache_valid;
+
+    std::array<uint8_t, 8> _writeChache{};
+    bool _cacheValid;
 };
