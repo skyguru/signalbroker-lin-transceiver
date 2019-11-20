@@ -6,8 +6,8 @@ Config::Config(Records &records)
 }
 
 /**
- * @breif: Init the config-udp
- * @param: deveice_identifier: this identifier needs for the serverside
+ * @brief Init the config-udp
+ * @param deveice_identifier: Set identifier so the server knows who it's talking to
  * */
 void Config::init(uint8_t device_identifier)
 {
@@ -23,27 +23,27 @@ void Config::init(uint8_t device_identifier)
     {
         _udp.onPacket([&](AsyncUDPPacket packet) {
             std::array<char, 100> message;
+
+            auto remoteIp = packet.remoteIP().toString().c_str();
+            auto localIp = packet.localIP().toString().c_str();
+
             sprintf(message.data(), "From: %s: %d, To: %s: %d, Length: %d",
-                    packet.remoteIP().toString().c_str(), packet.remotePort(),
-                    packet.localIP().toString().c_str(), packet.localPort(), packet.length());
+                    remoteIp, packet.remotePort(),
+                    localIp, packet.localPort(), packet.length());
 
             log(message.data());
 
-            if (packet.length() > packetBuffer.size())
-            {
-                memcpy(packetBuffer.data(), packet.data(), packetBuffer.size());
-                _packetBufferLength = packetBuffer.size();
-            }
-            else
-            {
-                memcpy(packetBuffer.data(), packet.data(), packet.length());
-                _packetBufferLength = packet.length();
-            }
+            _packetBufferLength = packet.length() > _packetBuffer.size() ? _packetBuffer.size() : packet.length();
+            memcpy(_packetBuffer.data(), packet.data(), _packetBufferLength);
 
             if (!_lockIpAddress)
             {
                 ipserver = packet.remoteIP();
                 _lockIpAddress = true;
+
+                std::array<char, 50> debugMessage;
+                sprintf(debugMessage.data(), "Locked IPAddress: %d", _lockIpAddress);
+                log(debugMessage.data());
             }
             _newData = true;
         });
@@ -51,7 +51,7 @@ void Config::init(uint8_t device_identifier)
 }
 
 /**
- * @breif: Sending heartbeat, parse server message & verify config
+ * @brief Sending heartbeat, parse server message & verify config
  * */
 void Config::run()
 {
@@ -60,6 +60,9 @@ void Config::run()
     verifyConfig();
 }
 
+/**
+ * @brief Sending heartbeat to server every X millis sec
+ * */
 void Config::sendHeartbeat()
 {
     for (static ulong lastHeartbeat = 0; millis() > lastHeartbeat + _heartbeatPeriod; lastHeartbeat = millis())
@@ -119,6 +122,9 @@ void Config::sendHeartbeat()
     }
 }
 
+/**
+ * @brief Verifying that the data we got from server seems valid
+ * */
 void Config::verifyConfig()
 {
     bool goodConfig = false;
@@ -150,12 +156,16 @@ void Config::verifyConfig()
         if (!goodConfig)
         {
             // Wait 500ms
-            delay(500);
+            delay(200);
             parseServerMessage();
         }
     }
 }
 
+/**
+ * @brief Requesting item from server
+ * @param item: Object we want to have info about
+ * */
 void Config::requestConfigItem(uint8_t item)
 {
     std::array<char, 50> logMessage;
@@ -174,22 +184,9 @@ void Config::requestConfigItem(uint8_t item)
     _udp.broadcast(message);
 }
 
-void Config::sendLogToServer(const char *message)
-{
-    AsyncUDPMessage logMessage{};
-
-    logMessage.write(HEADER);
-    logMessage.write(_ribID);
-    logMessage.write(_lastHash.u8.high);
-    logMessage.write(_lastHash.u8.low);
-    logMessage.write(LOGGER);
-    logMessage.write((uint8_t)0x00);
-    logMessage.write((uint8_t)strlen(message));
-    logMessage.print(message);
-
-    _udp.broadcast(logMessage);
-}
-
+/**
+ * @brief Parse the message comming from the server
+ * */
 void Config::parseServerMessage()
 {
     // We return if we don't have any new data
@@ -200,30 +197,30 @@ void Config::parseServerMessage()
 
     _newData = false;
 
-    if (HEADER != packetBuffer[HEADER_OFFSET])
+    if (HEADER != _packetBuffer[HEADER_OFFSET])
     {
         return;
     }
 
-    if (_ribID != packetBuffer[RIB_ID_OFFSET])
+    if (_ribID != _packetBuffer[RIB_ID_OFFSET])
     {
         //This packet was intended for another RIB. If broadcasting is used that is not an error, but we are done.
         return;
     }
 
-    _lastHash.u8.high = packetBuffer[HASH_HIGH_OFFSET];
-    _lastHash.u8.low = packetBuffer[HASH_LOW_OFFSET];
+    _lastHash.u8.high = _packetBuffer[HASH_HIGH_OFFSET];
+    _lastHash.u8.low = _packetBuffer[HASH_LOW_OFFSET];
 
-    if (0 == packetBuffer[IDENTIFIER_OFFSET])
+    if (0 == _packetBuffer[IDENTIFIER_OFFSET])
     {
         return;
     }
 
-    int message_size = (packetBuffer[PAYLOAD_SIZE_HIGH_OFFSET] << 8) | packetBuffer[PAYLOAD_SIZE_LOW_OFFSET];
+    int message_size = (_packetBuffer[PAYLOAD_SIZE_HIGH_OFFSET] << 8) | _packetBuffer[PAYLOAD_SIZE_LOW_OFFSET];
 
     if ((_packetBufferLength - PAYLOAD_START_OFFSET) != message_size)
     {
-        if (message_size > (packetBuffer.size() - PAYLOAD_START_OFFSET))
+        if (message_size > (_packetBuffer.size() - PAYLOAD_START_OFFSET))
         {
             const char *message = "Udp_TX_PACKET_MAX_SIZE_CUSTOM is smaller then message size";
             log(message);
@@ -236,14 +233,14 @@ void Config::parseServerMessage()
         return;
     }
 
-    switch (packetBuffer[IDENTIFIER_OFFSET])
+    switch (_packetBuffer[IDENTIFIER_OFFSET])
     {
     case HOST_PORT:
         if (2 != message_size)
         {
             return;
         }
-        _hostPort = (packetBuffer[PAYLOAD_START_OFFSET] << 8) + packetBuffer[PAYLOAD_START_OFFSET + 1];
+        _hostPort = (_packetBuffer[PAYLOAD_START_OFFSET] << 8) + _packetBuffer[PAYLOAD_START_OFFSET + 1];
         Serial.printf("Hostport: %d\n", _hostPort);
         _hostPortHash = _lastHash;
         break;
@@ -253,7 +250,7 @@ void Config::parseServerMessage()
         {
             return;
         }
-        _clientPort = (packetBuffer[PAYLOAD_START_OFFSET] << 8) + packetBuffer[PAYLOAD_START_OFFSET + 1];
+        _clientPort = (_packetBuffer[PAYLOAD_START_OFFSET] << 8) + _packetBuffer[PAYLOAD_START_OFFSET + 1];
         Serial.printf("Clientport: %d\n", _clientPort);
         _clientPortHash = _lastHash;
         break;
@@ -261,26 +258,28 @@ void Config::parseServerMessage()
     case MESSAGE_SIZES:
     {
         int record_entries = (message_size) / 3;
-        if (record_entries > _records->recordEntries())
-        {
-            return;
-        }
 
         int count = PAYLOAD_START_OFFSET;
+
         for (int i = 0; i < record_entries; i++)
         {
-            Record *record = _records->getRecord(i);
-            int id = packetBuffer[count++];
-            int size = packetBuffer[count++];
-            int master = packetBuffer[count++];
+            Record record{};
+            int id = _packetBuffer[count++];
+            int size = _packetBuffer[count++];
+            int master = _packetBuffer[count++];
 
-            record->setId(id);
-            record->setSize(size);
-            record->setMaster(master);
-            record->setCacheValid(false);
+            record.setId(id);
+            record.setSize(size);
+            record.setMaster(master);
+            record.setCacheValid(false);
+            _records->add(record);
 
             std::array<char, 100> logMessage;
-            sprintf(logMessage.data(), "At address: %p, Id: %d, size: %d, master: %d\n", record, record->id(), record->size(), record->master());
+            sprintf(logMessage.data(), "Id: %d, size: %d, master: %d",
+                    _records->getLastElement()->id(),
+                    _records->getLastElement()->size(),
+                    _records->getLastElement()->master());
+
             log(logMessage.data());
         }
     }
@@ -292,7 +291,7 @@ void Config::parseServerMessage()
         {
             return;
         }
-        _nodeMode = (NodeModes)packetBuffer[PAYLOAD_START_OFFSET];
+        _nodeMode = (NodeModes)_packetBuffer[PAYLOAD_START_OFFSET];
         _nodeModeHash = _lastHash;
         break;
 
@@ -301,6 +300,10 @@ void Config::parseServerMessage()
     }
 }
 
+/**
+ * @brief: Depending on the state of LOG_TO_SERIAL we either log to serialport or udp 
+ * @param message: The message that will be printed in the log
+ * */
 void Config::log(const char *message)
 {
     if (LOG_TO_SERIAL)
@@ -309,11 +312,15 @@ void Config::log(const char *message)
     }
     else
     {
-        LogToServer(message);
+        logToServer(message);
     }
 }
 
-void Config::LogToServer(const char *message)
+/**
+ * @brief Sending log message to Udp-client instead of Serialport
+ * @param message: The message that will be printed in the log
+ * */
+void Config::logToServer(const char *message)
 {
     AsyncUDPMessage udpMessage{};
     udpMessage.write(HEADER);
@@ -324,10 +331,12 @@ void Config::LogToServer(const char *message)
     udpMessage.write((byte)0x00);
     udpMessage.write((byte)strlen(message));
     udpMessage.println(message);
-
     _udp.broadcast(udpMessage);
 }
 
+/**
+ * @brief Clear all counters 
+ * */
 void Config::clearCounters()
 {
     _rxOverLin = 0;
