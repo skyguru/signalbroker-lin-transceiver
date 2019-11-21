@@ -228,7 +228,6 @@ void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
 
     AsyncUDPMessage message{};
     message.write(toServer.data(), size + 5);
-    // message.write(toServer.data(), 13);
     _udpClient.send(message);
     _config->incrementTxOverUdp();
 }
