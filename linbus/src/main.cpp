@@ -37,7 +37,7 @@
 #define subnetAddress 255, 255, 255, 0
 
 constexpr bool dhcp_enabled = false;
-constexpr uint8_t ribId = 1;
+constexpr uint8_t rib_id = 1;
 
 AsyncUDP udp{};
 Records records{};
@@ -60,7 +60,7 @@ void setup()
   if (!dhcp_enabled)
     ETH.config(IPAddress(esp32Address), IPAddress(hostAddress), IPAddress(subnetAddress));
 
-  config.init(ribId);
+  config.init(rib_id);
 
   Serial.print("Connecting");
   while (!eth_connected)
