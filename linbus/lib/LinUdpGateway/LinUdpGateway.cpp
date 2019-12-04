@@ -209,7 +209,7 @@ void LinUdpGateway::sendOverUdp(uint8_t id)
  * */
 void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
 {
-    std::array<uint8_t, 13> toServer{};
+    std::array<uint8_t, 13> toServer{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     // If payload-size is bigger then total size of server
     if (size > 11)
