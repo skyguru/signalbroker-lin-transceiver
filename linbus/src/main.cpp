@@ -25,7 +25,6 @@
  * */
 
 #include <Arduino.h>
-#include <AsyncUDP.h>
 #include <ETH.h>
 
 #include "Config.hpp"
@@ -39,7 +38,6 @@
 constexpr bool dhcp_enabled = false;
 constexpr uint8_t rib_id = 1;
 
-AsyncUDP udp{};
 Records records{};
 Config config{records};
 LinUdpGateway linUdpGateway{Serial1, config, records};
