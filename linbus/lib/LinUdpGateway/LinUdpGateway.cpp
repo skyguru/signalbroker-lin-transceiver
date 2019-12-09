@@ -19,27 +19,21 @@ void LinUdpGateway::init()
         Serial.println("Connected to hostport");
         // Callback method when package arrives on udp
         _udpClient.onPacket([&](AsyncUDPPacket packet) {
-            Serial.print("UDP Packet Type: ");
-            Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
-            Serial.print(", From: ");
-            Serial.print(packet.remoteIP());
-            Serial.print(":");
-            Serial.print(packet.remotePort());
-            Serial.print(", To: ");
-            Serial.print(packet.localIP());
-            Serial.print(":");
-            Serial.print(packet.localPort());
-            Serial.print(", Length: ");
-            Serial.print(packet.length());
-            Serial.print(", Data: ");
-            Serial.write(packet.data(), packet.length());
-            Serial.println();
-
-            _packetBufferLength = packet.length() > _packetBuffer.size() ? _packetBuffer.size() : packet.length();
-            memcpy(&_packetBuffer, packet.data(), _packetBufferLength);
-
-            _config->incrementRxOverUdp();
-            newData = true;
+            // Serial.print("UDP Packet Type: ");
+            // Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
+            // Serial.print(", From: ");
+            // Serial.print(packet.remoteIP());
+            // Serial.print(":");
+            // Serial.print(packet.remotePort());
+            // Serial.print(", To: ");
+            // Serial.print(packet.localIP());
+            // Serial.print(":");
+            // Serial.print(packet.localPort());
+            // Serial.print(", Length: ");
+            // Serial.print(packet.length());
+            // Serial.print(", Data: ");
+            // Serial.write(packet.data(), packet.length());
+            // Serial.println();
         });
     }
 
@@ -48,21 +42,21 @@ void LinUdpGateway::init()
         Serial.printf("Connected to listenport: %d\n", _config->clientPort());
         // Callback method when package arrives on udp
         _udpListen.onPacket([&](AsyncUDPPacket packet) {
-            Serial.print("UDP Packet Type: ");
-            Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
-            Serial.print(", From: ");
-            Serial.print(packet.remoteIP());
-            Serial.print(":");
-            Serial.print(packet.remotePort());
-            Serial.print(", To: ");
-            Serial.print(packet.localIP());
-            Serial.print(":");
-            Serial.print(packet.localPort());
-            Serial.print(", Length: ");
-            Serial.print(packet.length());
-            Serial.print(", Data: ");
-            Serial.write(packet.data(), packet.length());
-            Serial.println();
+            // Serial.print("UDP Packet Type: ");
+            // Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
+            // Serial.print(", From: ");
+            // Serial.print(packet.remoteIP());
+            // Serial.print(":");
+            // Serial.print(packet.remotePort());
+            // Serial.print(", To: ");
+            // Serial.print(packet.localIP());
+            // Serial.print(":");
+            // Serial.print(packet.localPort());
+            // Serial.print(", Length: ");
+            // Serial.print(packet.length());
+            // Serial.print(", Data: ");
+            // Serial.write(packet.data(), packet.length());
+            // Serial.println();
 
             _packetBufferLength = packet.length() > _packetBuffer.size() ? _packetBuffer.size() : packet.length();
             memcpy(&_packetBuffer, packet.data(), _packetBufferLength);
@@ -207,9 +201,9 @@ void LinUdpGateway::sendOverUdp(uint8_t id)
  * @param payload - Pointer to the buffer that's are going to send
  * @param size - Size of payload 
  * */
-void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
+void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, size_t size)
 {
-    std::array<uint8_t, 13> toServer{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    std::array<uint8_t, 13> toServer{};
 
     // If payload-size is bigger then total size of server
     if (size > 11)
@@ -217,9 +211,15 @@ void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
         return;
     }
 
+    // The payload data starts at index 5
     uint8_t *payloadStart = &toServer[5];
+
+    // Index 3 holds the id 
     toServer[3] = id;
+
+    // Index 4 holds the payload size
     toServer[4] = size;
+
     // or rotate the bytes (if needed)
     for (int i = 0; i < size; i++)
     {
@@ -307,21 +307,15 @@ void LinUdpGateway::run()
     switch (_config->nodeMode())
     {
     case Config::NodeModes::MASTER:
-    {
         runMaster();
-    }
-    break;
+        break;
     case Config::NodeModes::SLAVE:
-    {
         runSlave();
-    }
-    break;
+        break;
     default:
-    {
         _config->log("You heaven't specified node, please select node in the signalbroker and restart.");
         delay(500);
-    }
-    break;
+        break;
     }
 }
 
