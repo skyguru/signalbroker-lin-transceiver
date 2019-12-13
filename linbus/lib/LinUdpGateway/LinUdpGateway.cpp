@@ -1,7 +1,7 @@
 #include "LinUdpGateway.hpp"
 
 LinUdpGateway::LinUdpGateway(HardwareSerial &serial, Config &config, Records &records)
-    : _lin(serial),
+    : _lin(serial, TX1),
       _config(&config), _records(&records)
 {
 }
@@ -16,30 +16,30 @@ void LinUdpGateway::init()
 
     if (_udpClient.connect(_config->serverIp(), _config->hostPort()))
     {
-        Serial.println("Connected to hostport");
+        Serial.printf("Connected to listenport: %d\n", _config->hostPort());
         // Callback method when package arrives on udp
         _udpClient.onPacket([&](AsyncUDPPacket packet) {
-            Serial.print("UDP Packet Type: ");
-            Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
-            Serial.print(", From: ");
-            Serial.print(packet.remoteIP());
-            Serial.print(":");
-            Serial.print(packet.remotePort());
-            Serial.print(", To: ");
-            Serial.print(packet.localIP());
-            Serial.print(":");
-            Serial.print(packet.localPort());
-            Serial.print(", Length: ");
-            Serial.print(packet.length());
-            Serial.print(", Data: ");
-            Serial.write(packet.data(), packet.length());
-            Serial.println();
+            // Serial.print("UDP Packet Type: ");
+            // Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
+            // Serial.print(", From: ");
+            // Serial.print(packet.remoteIP());
+            // Serial.print(":");
+            // Serial.print(packet.remotePort());
+            // Serial.print(", To: ");
+            // Serial.print(packet.localIP());
+            // Serial.print(":");
+            // Serial.print(packet.localPort());
+            // Serial.print(", Length: ");
+            // Serial.print(packet.length());
+            // Serial.print(", Data: ");
+            // Serial.write(packet.data(), packet.length());
+            // Serial.println();
 
-            _packetBufferLength = packet.length() > _packetBuffer.size() ? _packetBuffer.size() : packet.length();
-            memcpy(&_packetBuffer, packet.data(), _packetBufferLength);
+            // _packetBufferLength = packet.length() > _packetBuffer.size() ? _packetBuffer.size() : packet.length();
+            // memcpy(&_packetBuffer, packet.data(), _packetBufferLength);
 
-            _config->incrementRxOverUdp();
-            newData = true;
+            // _config->incrementRxOverUdp();
+            // newData = true;
         });
     }
 
@@ -48,21 +48,21 @@ void LinUdpGateway::init()
         Serial.printf("Connected to listenport: %d\n", _config->clientPort());
         // Callback method when package arrives on udp
         _udpListen.onPacket([&](AsyncUDPPacket packet) {
-            Serial.print("UDP Packet Type: ");
-            Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
-            Serial.print(", From: ");
-            Serial.print(packet.remoteIP());
-            Serial.print(":");
-            Serial.print(packet.remotePort());
-            Serial.print(", To: ");
-            Serial.print(packet.localIP());
-            Serial.print(":");
-            Serial.print(packet.localPort());
-            Serial.print(", Length: ");
-            Serial.print(packet.length());
-            Serial.print(", Data: ");
-            Serial.write(packet.data(), packet.length());
-            Serial.println();
+            // Serial.print("UDP Packet Type: ");
+            // Serial.print(packet.isBroadcast() ? "Broadcast" : packet.isMulticast() ? "Multicast" : "Unicast");
+            // Serial.print(", From: ");
+            // Serial.print(packet.remoteIP());
+            // Serial.print(":");
+            // Serial.print(packet.remotePort());
+            // Serial.print(", To: ");
+            // Serial.print(packet.localIP());
+            // Serial.print(":");
+            // Serial.print(packet.localPort());
+            // Serial.print(", Length: ");
+            // Serial.print(packet.length());
+            // Serial.print(", Data: ");
+            // Serial.write(packet.data(), packet.length());
+            // Serial.println();
 
             _packetBufferLength = packet.length() > _packetBuffer.size() ? _packetBuffer.size() : packet.length();
             memcpy(&_packetBuffer, packet.data(), _packetBufferLength);
@@ -79,7 +79,7 @@ void LinUdpGateway::init()
  * */
 void LinUdpGateway::writeHeader(uint8_t id)
 {
-    std::array<uint8_t, 2> echo;
+    std::array<uint8_t, 2> echo{};
     _lin.serialBreak();                          // Generate the low signal that exceeds 1 char.
     _lin.serial.write(SYN_FIELD);                // Sync byte
     _lin.serial.write(_lin.addrParity(id) | id); // ID byte
@@ -95,10 +95,9 @@ void LinUdpGateway::writeHeader(uint8_t id)
  * */
 uint8_t LinUdpGateway::synchHeader()
 {
-    int bytesExpected = 3;
     std::array<uint8_t, 3> synchBuffer;
 
-    int bytesReceived = _lin.serial.readBytes(synchBuffer.data(), bytesExpected);
+    int bytesReceived = _lin.serial.readBytes(synchBuffer.data(), synchBuffer.size());
     int synchTries = 0;
 
     byte frameBreak = synchBuffer[0];
@@ -106,6 +105,7 @@ uint8_t LinUdpGateway::synchHeader()
     byte frameId = synchBuffer[2];
 
     boolean match = (frameBreak == BREAK) && (frameSynch == SYN_FIELD);
+
     while (!match)
     {
         int bytesExpected = 1;
@@ -123,6 +123,7 @@ uint8_t LinUdpGateway::synchHeader()
             sprintf(message.data(), "Timeout2: Bytes expected: %d, bytes recieved: %d, synchTries: %d", bytesExpected, bytesReceived, synchTries);
             _config->log(message.data());
         }
+
         match = (frameBreak == BREAK) && (frameSynch == SYN_FIELD);
         synchTries++;
     }
@@ -147,41 +148,42 @@ uint8_t LinUdpGateway::synchHeader()
  * */
 void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
 {
-    std::array<uint8_t, 10> readbuffer;
     // readbuffer   0  1  2        3        4       10
     //              id payload1 payload2...         crc
     // count        0        1        2
-    boolean crc_valid = false;
-    uint8_t payload_size = 0;
+    std::array<uint8_t, 10> readbuffer{};
 
-    _lin.serial.setTimeout(TRAFFIC_TIMEOUT);
+    _lin.serial.setTimeout(13);
     readbuffer.at(0) = (uint8_t)(_lin.addrParity(id) | id);
 
     Record *record = _records->getRecordById(id);
+    const int bytesExpected = record->size() + 1;
 
     if (record != nullptr)
     {
-        payload_size = record->size();
         // adding one for crc.
-        int bytesReceived = _lin.serial.readBytes(&readbuffer[1], payload_size + 1);
+        int bytesReceived = _lin.serial.readBytes(&readbuffer[1], bytesExpected);
+        Serial.printf("Bytes expected %d, bytes received: %d\n", bytesExpected, bytesReceived);
 
-        if (bytesReceived == (payload_size + 1))
+        bool crc_valid = false;
+
+        if (bytesReceived == (bytesExpected))
         {
             if ((id == DiagnosticFrameId::MasterRequest) || (id == DiagnosticFrameId::SlaveRequest))
             {
                 // calculate checksum in traditional way for diagnstic frames.
-                crc_valid = _lin.validateChecksum(&readbuffer[1], payload_size + 1);
+                crc_valid = _lin.validateChecksum(&readbuffer[1], bytesExpected);
             }
             else
             {
                 // Checksum considering payload-size + id + checksum
-                crc_valid = _lin.validateChecksum(&readbuffer[0], payload_size + 2);
+                crc_valid = _lin.validateChecksum(&readbuffer[0], bytesExpected + 1);
             }
             _config->incrementRxOverLin();
 
             if (crc_valid)
             {
-                sendOverUdp(id, &readbuffer[1], payload_size);
+                sendOverUdp(id, &readbuffer[1], record->size());
             }
         }
     }
@@ -209,7 +211,7 @@ void LinUdpGateway::sendOverUdp(uint8_t id)
  * */
 void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
 {
-    std::array<uint8_t, 13> toServer{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    std::array<uint8_t, 13> toServer{};
 
     // If payload-size is bigger then total size of server
     if (size > 11)
@@ -217,9 +219,15 @@ void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
         return;
     }
 
+    // The payload data starts at index 5
     uint8_t *payloadStart = &toServer[5];
+
+    // Index 3 holds the id
     toServer[3] = id;
+
+    // Index 4 holds the payload size
     toServer[4] = size;
+
     // or rotate the bytes (if needed)
     for (int i = 0; i < size; i++)
     {
@@ -238,7 +246,7 @@ void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
  * */
 void LinUdpGateway::sendOverSerial(Record *record)
 {
-    std::array<uint8_t, 10> sendbuffer;
+    std::array<uint8_t, 10> sendbuffer{};
 
     uint8_t id = record->id();
     sendbuffer[0] = _lin.addrParity(id) | id;
@@ -250,7 +258,7 @@ void LinUdpGateway::sendOverSerial(Record *record)
     }
 
     uint8_t *crc = &sendbuffer[1 + record->size()];
-    if ((id == 60) || (id == 61))
+    if ((id == MasterRequest) || (id == SlaveRequest))
     {
         // calculate checksum in traditional way for diagnstic frames.
         crc[0] = (uint8_t)_lin.calulateChecksum(&sendbuffer[1], record->size());
@@ -307,21 +315,15 @@ void LinUdpGateway::run()
     switch (_config->nodeMode())
     {
     case Config::NodeModes::MASTER:
-    {
         runMaster();
-    }
-    break;
+        break;
     case Config::NodeModes::SLAVE:
-    {
         runSlave();
-    }
-    break;
+        break;
     default:
-    {
         _config->log("You heaven't specified node, please select node in the signalbroker and restart.");
         delay(500);
-    }
-    break;
+        break;
     }
 }
 
