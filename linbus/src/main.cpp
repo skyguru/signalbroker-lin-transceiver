@@ -18,10 +18,11 @@
 // under the License.
 
 /**
- * @author: Niclas Lind & Alvaro Alonso
- * 
- * @note: This project is based on a project from Aleksandar Filipov
+ * @author Alvaro Alonso & Niclas Lind
+ * @note This project is based on a project from Aleksandar Filipov
  *          https://github.com/volvo-cars/signalbroker-lin-transceiver
+ * 
+ * @version 0.0.1
  * */
 
 #include <Arduino.h>
@@ -35,8 +36,9 @@
 #define esp32Address 192, 168, 5, 50 // Local IPAddress
 #define subnetAddress 255, 255, 255, 0
 
-constexpr bool dhcp_enabled = false;
-constexpr uint8_t rib_id = 1;
+constexpr uint8_t rib_id= 1;  
+constexpr bool dhcp_enabled = true;
+static bool eth_connected = false;
 
 Records records{};
 Config config{records};
@@ -45,14 +47,11 @@ LinUdpGateway linUdpGateway{Serial1, config, records};
 void connectEthernet();
 void WiFiEvent(WiFiEvent_t event);
 
-static bool eth_connected = false;
-
 void setup()
 {
   Serial.begin(115200);
   Serial1.begin(19200);
   WiFi.onEvent(WiFiEvent);
-
   ETH.begin();
 
   if (!dhcp_enabled)
@@ -64,7 +63,7 @@ void setup()
   while (!eth_connected)
   {
     Serial.print(".");
-    delay(500);
+    delay(100);
   }
   Serial.println();
 }
@@ -73,7 +72,6 @@ void loop()
 {
   // Get configuration from server and send heartbeat
   config.run();
-
 
   if (!linUdpGateway.connected())
   {
@@ -110,7 +108,7 @@ void WiFiEvent(WiFiEvent_t event)
     // auto macAddress = ETH.macAddress().c_str();
     // auto ipv4Address = ETH.localIP().toString().c_str();
 
-    // std::array<char, 50> logMessage;
+    // std::array<char, 100> logMessage{};
     // sprintf(logMessage.data(), "WifiEvent: MacAddress: %s, IPAddress: %s", macAddress, ipv4Address);
     // config.log(logMessage.data());
     eth_connected = true;
