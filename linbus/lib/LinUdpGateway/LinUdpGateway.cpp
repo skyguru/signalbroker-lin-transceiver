@@ -153,7 +153,7 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
     // count        0        1        2
     std::array<uint8_t, 10> readbuffer{};
 
-    _lin.serial.setTimeout(13);
+    _lin.serial.setTimeout(TRAFFIC_TIMEOUT);
     readbuffer.at(0) = (uint8_t)(_lin.addrParity(id) | id);
 
     Record *record = _records->getRecordById(id);
@@ -213,7 +213,7 @@ void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
 {
     std::array<uint8_t, 13> toServer{};
 
-    // If payload-size is bigger then total size of server
+    // If payload-size is greater then total size of server
     if (size > 11)
     {
         return;
@@ -257,7 +257,8 @@ void LinUdpGateway::sendOverSerial(Record *record)
         sendbuffer_payload[i] = record->writeCache()->at(record->size() - 1 - i);
     }
 
-    uint8_t *crc = &sendbuffer[1 + record->size()];
+    uint8_t *crc = &sendbuffer[record->size() + 1];
+
     if ((id == MasterRequest) || (id == SlaveRequest))
     {
         // calculate checksum in traditional way for diagnstic frames.
