@@ -130,6 +130,5 @@ private:
     bool _lockIpAddress = false;               // Until we have recieved an ipaddress from the server, we have this set to false
 
     DoubleByte _lastHash; // Last server message had this config version (or config hash) and all config fields should match.
-
     Records *_records; // In here we store all out records
 };
