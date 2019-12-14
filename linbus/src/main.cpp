@@ -36,7 +36,7 @@
 #define esp32Address 192, 168, 5, 50 // Local IPAddress
 #define subnetAddress 255, 255, 255, 0
 
-constexpr uint8_t rib_id= 1;  
+constexpr uint8_t rib_id = 1;
 constexpr bool dhcp_enabled = true;
 static bool eth_connected = false;
 
