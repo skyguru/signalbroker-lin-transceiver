@@ -34,12 +34,6 @@ void LinUdpGateway::init()
             // Serial.print(", Data: ");
             // Serial.write(packet.data(), packet.length());
             // Serial.println();
-
-            // _packetBufferLength = packet.length() > _packetBuffer.size() ? _packetBuffer.size() : packet.length();
-            // memcpy(&_packetBuffer, packet.data(), _packetBufferLength);
-
-            // _config->incrementRxOverUdp();
-            // newData = true;
         });
     }
 
