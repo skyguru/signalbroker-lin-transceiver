@@ -17,7 +17,6 @@ class LinUdpGateway
 
 public:
     LinUdpGateway(HardwareSerial &serial, Config &config, Records &records);
-
     void init();
 
 public:
@@ -51,9 +50,14 @@ private:
 
     // this is used by the master to send lin BREAK
     // on lin 14, 3 is fine. 2 results in some timeout
-    static constexpr uint8_t TRAFFIC_TIMEOUT = 13;
+    static constexpr uint8_t TRAFFIC_TIMEOUT = 14;
     static constexpr uint8_t QUERY_SIGNAL_SERVER_TIMEOUT = 0;
     static constexpr uint16_t DEFAULT_LIN_TIMEOUT = 1000;
+
+    // From signalbroker-server we receive UDP-packets ordered in this way
+    static constexpr uint8_t PACKET_BUFFER_ID_POS = 3;
+    static constexpr uint8_t PACKET_BUFFER_SIZE_POS = 4;
+    static constexpr uint8_t PACKET_BUFFER_PAYLOAD_POS = 5;
 
     bool newData = false;
 };
