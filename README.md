@@ -1,66 +1,25 @@
 # Lin bus reader and writer
 
 
-Ardunio Ethernet (alt. arduino micro + ethernet shield) + MCP2004A. Read/write, act as a master or one or many slaves.
+ESP32-POE + Custom made PCB with MCP2004A. Read/write, act as a master or one or many slaves.
 
 ## Setup
 
-### Arduino Micro based
-![Components](doc/20180904_141332.jpg)
+### ESP32-POE
 
-for ENC28J60 connect (Same coloring as in picture)
+The schematics for this solution can be found in the KiCad folder under the appropriate card/project.
+ 
+#### PCB
 
-| micro |  W5100/ENC28J60 |
-|-----|-----|
-| 5v | VCC |
-| GND | GND |
-| MOSI | SI |
-| D10 | CS |
-| MISO | S0 |
-| SCLK | SCK |
-| RESET | RST |
+Assemble the PCB. The BOM(Bill of materials) is located under doc/PCB/KiCad. 
+Use the jumper for master mode if the module shoulde be a master node.
+![PCB](/doc/PCB.jpg)
 
-### Arduino Ethernet based
-![Components](doc/20180509_105715.jpg)
+Connect the ESP32-POE to the PCB.
+![Final module](/doc/Final-module.JPG)
 
-components:
-
-* Arduino micro
-https://store.arduino.cc/arduino-micro
-
-* Lin transiver (MCP2004A based)
-http://skpang.co.uk/catalog/linbus-breakout-board-p-1417.html
-
-* Ethernet wiznet w5100
-http://pchbutik.se/nytt-pa-lager/743-w5100-ethernet-module-ethernet-network-module-for-arduino.html?search_query=w510&results=1
-[image](doc/W5100-LAN-Arduino.jpg)
-
-Alternative hardware...
-
-* ENC28J60 ethernet module - NOT recommended, drops lots of udp packets!
-https://www.ebay.com/itm/1-Ethernet-Module-ENC28J60-MINI-Ethernet-Network-Module-Arduino-Raspberry-pi-/181357105178
-<br/>
-<br/>
-for this you need to use the following library
-https://github.com/UIPEthernet/UIPEthernet
-<br/>
-<br/>
-
-* Ardunio ethernet - less soldering!
-https://store.arduino.cc/arduino-ethernet-rev3-without-poe
-
-* to be able to program the arduino/only needed for Arduino Ethernet
-https://store.arduino.cc/arduino-usb-2-serial-micro
-
-Yet other alternatives...
-* Arduino uno
-https://store.arduino.cc/arduino-uno-rev3
-* Ardunio ethernet shield
-https://store.arduino.cc/arduino-ethernet-rev3-without-poe
-
-Yet another alternative, probably the leanest Configuration (untested)
-* Arduino Leonard ethernet
-https://www.electrokit.com/produkt/arduino-leonardo-ethernet-med-poe/
+The PCB is designed to be able to have several modules in a case/box if needed.
+![Multiple modules](/doc/multiple-cards.JPG)
 
 ## Configuration
 
