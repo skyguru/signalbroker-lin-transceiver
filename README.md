@@ -13,7 +13,7 @@ The schematics for this solution can be found in the KiCad folder under the appr
 
 Assemble the PCB. The BOM(Bill of materials) is located under doc/PCB/KiCad. 
 Use the jumper for master mode if the module shoulde be a master node.
-![PCB](/doc/https://github.com/volvo-cars/signalbroker-lin-transceiver/raw/esp32/doc/PCB.jpg)
+![PCB](https://github.com/volvo-cars/signalbroker-lin-transceiver/raw/esp32/doc/PCB.jpg)
 
 Connect the ESP32-POE to the PCB.
 ![Final module](/doc/Final-module.JPG)
