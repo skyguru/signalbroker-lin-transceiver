@@ -252,10 +252,15 @@ void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
  * */
 void LinUdpGateway::sendOverSerial(Record *record)
 {
+    // The server expect the data is comming in this order
+    // first byte is id, following by payload (5-7 bytes) and last the crc
+
+    // With this buffer we arrange the data in the order the server expect it
     std::array<uint8_t, 10> sendbuffer{};
 
     uint8_t id = record->id();
     sendbuffer[0] = _lin.addrParity(id) | id;
+
     uint8_t *sendbuffer_payload = &sendbuffer[1];
 
     for (uint8_t i = 0; i < record->size(); i++)
