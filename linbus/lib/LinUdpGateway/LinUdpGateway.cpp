@@ -173,25 +173,25 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
     // If the bytes recieved is the same as bytes expected, increment the counter
     _config->incrementRxOverLin();
 
-        if (bytesReceived == (bytesExpected))
-        {
-            if ((id == DiagnosticFrameId::MasterRequest) || (id == DiagnosticFrameId::SlaveRequest))
-            {
-                // calculate checksum in traditional way for diagnstic frames.
-                crc_valid = _lin.validateChecksum(&readbuffer[1], bytesExpected);
-            }
-            else
-            {
-                // Checksum considering payload-size + id + checksum
-                crc_valid = _lin.validateChecksum(&readbuffer[0], bytesExpected + 1);
-            }
-            _config->incrementRxOverLin();
+    // This value holds the comparison between the recieved crc on the bus & the calculated crc
+    bool crc_valid = false;
 
-            if (crc_valid)
-            {
-                sendOverUdp(id, &readbuffer[1], record->size());
-            }
-        }
+    // In case the the frame is a diagnostic frame, calculate the crc without id (old LIN 1.0 way)
+    if ((id == DiagnosticFrameId::MasterRequest) || (id == DiagnosticFrameId::SlaveRequest))
+    {
+        // calculate checksum in traditional way for diagnstic frames.
+        crc_valid = _lin.validateChecksum(&readbuffer[1], bytesExpected);
+    }
+    else
+    {
+        // Checksum considering payload-size + id + checksum
+        crc_valid = _lin.validateChecksum(&readbuffer[0], bytesExpected + 1);
+    }
+
+    // If the calculated crc is the same as the one recived on the linbus, then let's send it to the server
+    if (crc_valid)
+    {
+        sendOverUdp(id, &readbuffer[1], record->size());
     }
 
     // return to default timeout.
