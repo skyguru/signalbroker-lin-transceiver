@@ -294,29 +294,29 @@ void LinUdpGateway::cacheUdpMessage(Record *record)
     // If we don't have recieve any new data or the packetbuffer length is lesser then 4byte
     if (!newData || (_packetBufferLength < 4 && (_packetBufferLength != 0)))
     {
-        Record *updateRecord = record;
-        if (_packetBuffer[3] != updateRecord->id())
-        {
-            updateRecord = _records->getRecordById(_packetBuffer[3]);
-        }
-        if (updateRecord == nullptr)
-        {
-            std::array<char, 100> logMessage{};
-            sprintf(logMessage.data(), "Missmatch id: 0x%d does not exits", _packetBuffer[3]);
-            _config->log(logMessage.data());
-        }
-        else
-        {
-            memcpy(updateRecord->writeCache(), &_packetBuffer[5], updateRecord->size());
-            updateRecord->setCacheValid(true);
-        }
+        _config->log("Signalserver payload too short");
+        return;
+    }
+    newData = false;
+
+    Record *updateRecord = record;
+    const uint8_t ID = _packetBuffer.at(PACKET_BUFFER_ID_POS);
+
+    if (ID != updateRecord->id())
+    {
+        updateRecord = _records->getRecordById(ID);
+    }
+
+    if (updateRecord == nullptr)
+    {
+        std::array<char, 100> logMessage{};
+        sprintf(logMessage.data(), "Missmatch id: 0x%d does not exits", ID);
+        _config->log(logMessage.data());
     }
     else
     {
-        if ((_packetBufferLength < 4) && (_packetBufferLength != 0))
-        {
-            _config->log("Signalserver payload too short");
-        }
+        memcpy(updateRecord->writeCache(), &_packetBuffer[PACKET_BUFFER_PAYLOAD_POS], updateRecord->size());
+        updateRecord->setCacheValid(true);
     }
 }
 
@@ -345,16 +345,20 @@ void LinUdpGateway::run()
  * */
 void LinUdpGateway::runMaster()
 {
-    // wait for server/automatic or manually to write arbitration frame
-    if (_packetBufferLength >= 5)
+    constexpr static int minPacketBufferLength = 5;
+
+    if (!newData)
     {
-        // The id of linframe is stored in byte 3 of packetBuffer
-        uint8_t id = _packetBuffer[3];
+        return;
+    }
 
-        // Find record with the id from packetbuffer
-        Record *record = _records->getRecordById(id);
+    newData = false;
 
-        boolean validpayload = ((_packetBufferLength == 5) || (_packetBufferLength == (5 + record->size())));
+    // Wait until UDPmessage payload is greater then 5
+    if (_packetBufferLength < minPacketBufferLength)
+    {
+        return;
+    }
 
         if (validpayload)
         {
