@@ -161,11 +161,14 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
     // Bytes expected is record size + one byte for crc
     const int bytesExpected = record->size() + 1;
 
-    if (record != nullptr)
+    // Reading payload and crc
+    int bytesReceived = _lin.serial.readBytes(&readbuffer[1], bytesExpected);
+
+    // If these values doesn't match, return.
+    if (bytesReceived != bytesExpected)
     {
-        // adding one for crc.
-        int bytesReceived = _lin.serial.readBytes(&readbuffer[1], bytesExpected);
-        Serial.printf("Bytes expected %d, bytes received: %d\n", bytesExpected, bytesReceived);
+        return;
+    }
 
         bool crc_valid = false;
 
