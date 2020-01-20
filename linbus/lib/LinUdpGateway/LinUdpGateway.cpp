@@ -151,6 +151,14 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
     readbuffer.at(0) = (uint8_t)(_lin.addrParity(id) | id);
 
     Record *record = _records->getRecordById(id);
+
+    // If the records couldnt be found, go out from here
+    if (record == nullptr)
+    {
+        return;
+    }
+
+    // Bytes expected is record size + one byte for crc
     const int bytesExpected = record->size() + 1;
 
     if (record != nullptr)
