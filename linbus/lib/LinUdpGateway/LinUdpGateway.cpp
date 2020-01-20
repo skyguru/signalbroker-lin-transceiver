@@ -291,7 +291,8 @@ void LinUdpGateway::sendOverSerial(Record *record)
  * */
 void LinUdpGateway::cacheUdpMessage(Record *record)
 {
-    if (_packetBufferLength >= 4)
+    // If we don't have recieve any new data or the packetbuffer length is lesser then 4byte
+    if (!newData || (_packetBufferLength < 4 && (_packetBufferLength != 0)))
     {
         Record *updateRecord = record;
         if (_packetBuffer[3] != updateRecord->id())
