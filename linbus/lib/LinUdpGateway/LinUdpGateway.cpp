@@ -360,30 +360,35 @@ void LinUdpGateway::runMaster()
         return;
     }
 
-        if (validpayload)
+    uint8_t id = _packetBuffer[PACKET_BUFFER_ID_POS];
+
+    // Find record with the id from packetbuffer
+    Record *record = _records->getRecordById(id);
+
+    bool validpayload = ((_packetBufferLength == minPacketBufferLength) || (_packetBufferLength == (minPacketBufferLength + record->size())));
+
+    if (!validpayload)
+    {
+        _config->log("Run Master: Incorrect data recieved over udp id");
+        return;
+    }
+
+    if (_packetBufferLength == minPacketBufferLength)
+    {
+        // this is an arbitration frame
+        if (!record->master())
         {
-            if (_packetBufferLength == 5)
-            {
-                // this is an arbitration frame
-                if (!record->master())
-                {
-                    writeHeader(id);
-                    // now consume the result
-                    readLinAndSendOnUdp(id);
-                }
-            }
-            else
-            {
-                // this a master frame. Send it all..
-                writeHeader(id);
-                memcpy(record->writeCache(), &_packetBuffer[5], record->size());
-                sendOverSerial(record);
-            }
+            writeHeader(id);
+            // now consume the result
+            readLinAndSendOnUdp(id);
         }
-        else
-        {
-            _config->log("Run Master: Incorrect data recieved over udp id");
-        }
+    }
+    else
+    {
+        // this a master frame. Send it all..
+        writeHeader(id);
+        memcpy(record->writeCache(), &_packetBuffer[PACKET_BUFFER_PAYLOAD_POS], record->size());
+        sendOverSerial(record);
     }
 }
 
