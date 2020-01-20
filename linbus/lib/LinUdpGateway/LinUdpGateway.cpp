@@ -226,13 +226,13 @@ void LinUdpGateway::sendOverUdp(uint8_t id, uint8_t *payload, uint8_t size)
     }
 
     // The payload data starts at index 5
-    uint8_t *payloadStart = &toServer[5];
+    uint8_t *payloadStart = &toServer[PACKET_BUFFER_PAYLOAD_POS];
 
     // Index 3 holds the id
-    toServer[3] = id;
+    toServer[PACKET_BUFFER_ID_POS] = id;
 
     // Index 4 holds the payload size
-    toServer[4] = size;
+    toServer[PACKET_BUFFER_SIZE_POS] = size;
 
     // or rotate the bytes (if needed)
     for (int i = 0; i < size; i++)
