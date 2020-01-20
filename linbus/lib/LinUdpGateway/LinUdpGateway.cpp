@@ -145,7 +145,7 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
     // readbuffer   0  1  2        3        4       10
     //              id payload1 payload2...         crc
     // count        0        1        2
-    std::array<uint8_t, 10> readbuffer{};
+    std::array<uint8_t, 12> readbuffer{};
 
     _lin.serial.setTimeout(TRAFFIC_TIMEOUT);
     readbuffer.at(0) = (uint8_t)(_lin.addrParity(id) | id);
