@@ -170,7 +170,8 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
         return;
     }
 
-        bool crc_valid = false;
+    // If the bytes recieved is the same as bytes expected, increment the counter
+    _config->incrementRxOverLin();
 
         if (bytesReceived == (bytesExpected))
         {
