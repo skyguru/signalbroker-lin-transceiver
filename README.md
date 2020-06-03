@@ -93,7 +93,7 @@ Once it's configured use Arduino Studio to upload your software. When uploading 
 
 Signal sever will configure the node automatically.
 
-https://github.com/volvo-cars/signalbroker-server
+https://github.com/AleksandarFilipov/signalbroker-server
 
 Make sure to ports are open on the linux machine hosting the signalserver.
 
