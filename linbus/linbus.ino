@@ -113,6 +113,7 @@ union DoubleByte
 
 struct Config {
   #define CONFIG_PORT 4000
+  #define CONFIG_PORT_RECEIVE 4001
   #define DEBUG_PORT_BASE 3000
   #define HEARTBEAT_PERIOD 3000 //ms
 
@@ -212,6 +213,7 @@ byte packetBuffer[UDP_TX_PACKET_MAX_SIZE_CUSTOM];  //buffer to hold incoming pac
 // An EthernetUDP instance to let us send and receive packets over UDP
 EthernetUDP Udp;
 EthernetUDP UdpConfig;
+EthernetUDP UdpConfigReceive;
 
 // byte b, i, n, b2;
 // LinFrame frame;
@@ -252,6 +254,7 @@ void setup() {
   pinMode(BLUE_PIN, OUTPUT);
 
   UdpConfig.begin(CONFIG_PORT);
+  UdpConfigReceive.begin(CONFIG_PORT_RECEIVE);
 
   debugPrintln("LIN Debugging begins");
   lin.begin(19200);
@@ -611,7 +614,7 @@ void Config::parse_server_message() {
   int packetSize = UdpConfig.parsePacket();
   if (0 == packetSize) return;
 
-  UdpConfig.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE_CUSTOM);
+  UdpConfigReceive.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE_CUSTOM);
 
   if (HEADER != packetBuffer[HEADER_OFFSET]) {
     debugPrintln("Wrong header: %x, should be %x", packetBuffer[HEADER_OFFSET], HEADER);
