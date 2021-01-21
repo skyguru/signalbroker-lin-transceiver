@@ -376,9 +376,8 @@ void sendOverUdp(byte id, byte* payload, byte size) {
   byte* payloadLocal = &toServerPayload[5];
   toServerPayload[3] = id;
   toServerPayload[4] = size;
-  // or rotate the bytes (if needed)
   for (int i = 0; i < size; i++) {
-    payloadLocal[i] = payload[size-1-i];
+    payloadLocal[i] = payload[i];
   }
   if (!Udp.beginPacket(ipserver, config.hostPort)) {
     debugPrintln("!!! Failed to open UDP socket: %d, %d, %d, %d: %d for send", ipserver[0], ipserver[1], ipserver[2], ipserver[3], config.hostPort);
@@ -402,7 +401,7 @@ void sendOverSerial(Record* record) {
   sendbuffer[0] = lin.addrParity(id) | id;
   byte* sendbuffer_payload = &sendbuffer[1];
   for (int i = 0; i < record->size; i++) {
-    sendbuffer_payload[i] = record->write_cache[record->size-1-i];
+    sendbuffer_payload[i] = record->write_cache[i];
   }
   byte* crc = &sendbuffer[1+record->size];
   if ((id == 60) || (id == 61)) {
