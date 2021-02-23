@@ -1,5 +1,0 @@
-/Users/nlind1/repos/oia/beagle/lin-transceiver-github/firmware-beamybroker/cmake-build-esp32-poe/CMakeFiles/rebuild_cache.dir
-/Users/nlind1/repos/oia/beagle/lin-transceiver-github/firmware-beamybroker/cmake-build-esp32-poe/CMakeFiles/edit_cache.dir
-/Users/nlind1/repos/oia/beagle/lin-transceiver-github/firmware-beamybroker/cmake-build-esp32-poe/CMakeFiles/Z_DUMMY_TARGET.dir
-/Users/nlind1/repos/oia/beagle/lin-transceiver-github/firmware-beamybroker/cmake-build-esp32-poe/CMakeFiles/Debug.dir
-/Users/nlind1/repos/oia/beagle/lin-transceiver-github/firmware-beamybroker/cmake-build-esp32-poe/CMakeFiles/Production.dir
