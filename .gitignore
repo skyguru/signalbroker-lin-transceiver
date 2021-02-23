@@ -5,3 +5,4 @@
 .vscode/ipch
 cmake-build-debug
 cmake-build-esp32-poe
+.DS_STORE
