@@ -1,6 +1,11 @@
 #include "Config.hpp"
 #include <Arduino.h>
 
+/**
+ * @breif Create a config object
+ * @param ribID Your device ribID
+ * @param records A storage of records, so you can add records that's received from config
+ */
 Config::Config(uint8_t ribID, Records &records)
         : m_ribID(ribID),
           m_hostPort{},
@@ -15,41 +20,18 @@ Config::Config(uint8_t ribID, Records &records)
 }
 
 /**
- * @brief Init the config-udp
- * @param device_identifier: Set identifier so the server knows who it's talking to
- * */
+ * @breif Init the config-udp
+ **/
 void Config::init() {
+    // Just start to listen to port
     if (udpClientSender.listen(udpServerConfigPort)) {
 //        udpClientSender.onPacket([&](AsyncUDPPacket packet) {
-//            std::array<char, 100> message{};
-//
-//            auto remoteIp = packet.remoteIP().toString().c_str();
-//            auto localIp = packet.localIP();
-//
-//            if (localIp != deviceIP) {
-//                return;
-//            }
-//
-//            sprintf(message.data(), "From: %s: %d, To: %s: %d, Length: %d",
-//                    remoteIp, packet.remotePort(),
-//                    localIp.toString().c_str(), packet.localPort(), packet.length());
-//
-//            log(message.data());
-//
-//            m_packetBufferLength = packet.length() > m_packetBuffer.size() ? m_packetBuffer.size() : packet.length();
-//            memcpy(m_packetBuffer.data(), packet.data(), m_packetBufferLength);
-//
-//            if (!m_lockIpAddress) {
-//                ipServer = packet.remoteIP();
-//                m_lockIpAddress = true;
-//
-//                std::array<char, 50> debugMessage{};
-//                sprintf(debugMessage.data(), "Locked IPAddress: %d", m_lockIpAddress);
-//                log(debugMessage.data());
-//            }
-//            m_newData = true;
+//            Serial.println("Received");
 //        });
+
     }
+
+    // Listen to port and handle the incoming message
     if (udpClientReceiver.listen(udpTargetConfigPort)) {
         udpClientReceiver.onPacket([&](AsyncUDPPacket packet) {
             std::array<char, 100> message{};
@@ -57,9 +39,9 @@ void Config::init() {
             auto remoteIp = packet.remoteIP().toString().c_str();
             auto localIp = packet.localIP();
 
-            if (localIp != deviceIP) {
-                return;
-            }
+//            if (localIp != deviceIP) {
+//                return;
+//            }
 
             sprintf(message.data(), "From: %s: %d, To: %s: %d, Length: %d",
                     remoteIp, packet.remotePort(),
@@ -84,7 +66,7 @@ void Config::init() {
 }
 
 /**
- * @brief Sending heartbeat, parse server message & verify config
+ * @breif Sending heartbeat, parse server message & verify config
  * */
 void Config::run() {
     sendHeartbeat();
@@ -153,7 +135,7 @@ void Config::sendHeartbeat() {
 }
 
 /**
- * @brief Verifying that the data we got from server seems valid
+ * @breif Verifying that the data we got from server seems valid
  * */
 void Config::verifyConfig() {
     bool goodConfig = false;
@@ -183,7 +165,7 @@ void Config::verifyConfig() {
 }
 
 /**
- * @brief Requesting item from server
+ * @breif Requesting item from server
  * @param item: Object we want to have info about
  * */
 void Config::requestConfigItem(uint8_t item) {
@@ -238,7 +220,7 @@ void Config::parseServerMessage() {
             const char *message = "Udp_TX_PACKET_MAX_SIZE_CUSTOM is smaller then message size";
             log(message);
         } else {
-            const char *message = "payload size missmatch";
+            const char *message = "payload size mismatch";
             log(message);
         }
         return;
@@ -285,6 +267,11 @@ void Config::parseServerMessage() {
                         m_records.getLastElement()->master());
                 log(logMessage.data());
             }
+
+            // Add one more with an invalid frameID
+//            Record record{};
+//            record.setId(INVALID_LIN_ID);
+//            m_records.add(record);
         }
             m_messageSizesHash = m_lastHash;
             break;
@@ -302,7 +289,7 @@ void Config::parseServerMessage() {
 }
 
 /**
- * @brief: Depending on the state of LOG_TO_SERIAL we either log to serialport or udp 
+ * @breif Depending on the state of LOG_TO_SERIAL we either log to serialport or udp
  * @param message: The message that will be printed in the log
  * */
 void Config::log(const char *message) {
@@ -314,7 +301,7 @@ void Config::log(const char *message) {
 }
 
 /**
- * @brief Sending log message to Udp-client instead of Serialport
+ * @breif Sending log message to Udp-client instead of Serialport
  * @param message: The message that will be printed in the log
  * */
 void Config::logToServer(const char *message) {
@@ -331,7 +318,7 @@ void Config::logToServer(const char *message) {
 }
 
 /**
- * @brief Clear all counters 
+ * @breif Clear all counters
  * */
 void Config::clearCounters() {
     m_rxOverLin = 0;
