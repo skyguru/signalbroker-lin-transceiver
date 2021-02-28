@@ -13,13 +13,11 @@ LinUdpGateway::LinUdpGateway(HardwareSerial &serial, Config &config, Records &re
  * */
 void LinUdpGateway::init() {
     m_lin.begin();
-//    m_lin.serial.setTimeout(DEFAULT_LIN_TIMEOUT);
 
     if (m_udpClient.connect(m_config->serverIp(), m_config->hostPort())) {
         Serial.printf("Connected to host port: %d\n", m_config->hostPort());
         // Callback method when package arrives on udp
-        m_udpClient.onPacket([&](const AsyncUDPPacket &packet) {
-        });
+//        m_udpClient.onPacket([&](const AsyncUDPPacket &packet) {});
     }
 
     if (m_udpListen.listen(m_config->clientPort())) {
@@ -58,7 +56,7 @@ uint8_t LinUdpGateway::synchHeader() {
     std::array<uint8_t, 3> synchBuffer{};
 
     auto bytesReceived = m_lin.serial().readBytes(synchBuffer.data(), synchBuffer.size());
-//    Serial.printf("Received %d bytes\n", bytesReceived);
+    Serial.printf("Received %d bytes\n", bytesReceived);
 
     int synchTries = 0;
 
@@ -105,6 +103,7 @@ uint8_t LinUdpGateway::synchHeader() {
 /**
  * @brief We are reading frame on LIN-bus and send the frame over UDP
  * @param id - Frame id on LIN-bus
+ *
  * */
 void LinUdpGateway::readLinAndSendOnUdp(uint8_t id) {
     // read buffer  0  1  2        3        4       10
@@ -114,6 +113,49 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id) {
 
     m_lin.serial().setTimeout(TRAFFIC_TIMEOUT);
     readBuffer.at(0) = static_cast<uint8_t>((Lin::addrParity(id) | id));
+
+//    Serial.printf("Read LIN message with id %d and send on UDP\n", id);
+//    auto record = m_records->getRecordRefById(id);
+//
+//    if (record.id() == INVALID_LIN_ID) {
+//        Serial.printf("Invalid id %d\n", record.id());
+//        return;
+//    }
+//
+//    const int bytesExpected = record.size() + 1;
+//
+//
+//    int bytesReceived = m_lin.serial().readBytes(&readBuffer.at(1), bytesExpected);
+//
+//    if (bytesReceived != bytesExpected) {
+//        Serial.printf("Received %d bytes mismatch with expected %d\n", bytesReceived, bytesExpected);
+//        return;
+//    }
+//
+//    m_config->incrementRxOverLin();
+//
+//    Serial.printf("Read data from id %d: ", id);
+//    for (int i = 0; i < bytesExpected; i++) {
+//        Serial.print(readBuffer.at(i), HEX);
+//        Serial.print(" ");
+//    }
+//    Serial.println();
+//
+//    bool crc_valid;
+//
+//    if ((id == value(DiagnosticFrameId::MasterRequest)) || (id == value(DiagnosticFrameId::SlaveRequest))) {
+//        crc_valid = Lin::validateChecksum(&readBuffer.at(1), bytesExpected);
+//    } else {
+//        crc_valid = Lin::validateChecksum(&readBuffer.at(0), bytesExpected + 1);
+//    }
+//
+//    if (crc_valid) {
+//        sendOverUdp(id, &readBuffer.at(1), record.size());
+//    }
+//
+//    m_lin.serial().setTimeout(DEFAULT_LIN_TIMEOUT);
+
+////////////////////////////////////////
 
     Record *record = m_records->getRecordById(id);
 
@@ -163,6 +205,7 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id) {
  * @note We are sending a lin-id with empty bytes when we want to pull signals from a slave
  * */
 void LinUdpGateway::sendOverUdp(uint8_t id) {
+    Serial.printf("Sending empty\n");
     constexpr uint8_t empty = 0;
     sendOverUdp(id, &empty, 0);
 }
@@ -178,11 +221,9 @@ void LinUdpGateway::sendOverUdp(uint8_t id, const uint8_t *payload, uint8_t size
 
     // Don't continue if payload-size is greater then total size of server
     if (size > 11) {
+        Serial.println("Payload size to big!");
         return;
     }
-
-    // The payload data starts at index 5
-    uint8_t *payloadStart = &toServer.at(PACKET_BUFFER_PAYLOAD_POS);
 
     // Index 3 holds the id
     toServer.at(PACKET_BUFFER_ID_POS) = id;
@@ -193,10 +234,11 @@ void LinUdpGateway::sendOverUdp(uint8_t id, const uint8_t *payload, uint8_t size
     // Index 5 holds the payload
     memcpy(&toServer.at(PACKET_BUFFER_PAYLOAD_POS), payload, size);
 
-    // or rotate the bytes (if needed)
-//    for (int i = 0; i < size; i++) {
-//        *(payloadStart + i) = payload[size - 1 - i];
-//    }
+    for (auto i : toServer) {
+        Serial.print(i, HEX);
+        Serial.print(" ");
+    }
+    Serial.println();
 
     AsyncUDPMessage message{};
     message.write(toServer.data(), size + 5);
@@ -217,26 +259,18 @@ void LinUdpGateway::sendOverSerial(Record *record) {
 
     uint8_t id = record->id();
 
+    Serial.printf("Send over serial %d\n", record->id());
+
+    // Add Frame ID with parity to sendBuffer
     sendBuffer.at(0) = Lin::addrParity(id) | id;
 
-    uint8_t *sendBufferPayload = &sendBuffer.at(1);
+    // Add the frame payload to sendBuffer
     memcpy(&sendBuffer.at(1), &record->writeCache(), record->size());
 
-//    for (uint8_t i = 0; i < record->size(); i++) {
-//        Serial.printf("is at %d, record_size %d \n", i, record->size());
-//        sendBufferPayload[i] = record->writeCache().at(i);
-//    }
-
-//    for (uint8_t i = 0; i < record->size(); i++) {
-//        sendBufferPayload[i] = record->writeCache().at(record->size() - 1 - i);
-//    }
-
-//    if (id == 0x24) {
-//        Serial.println(sendBuffer.at(3) & 0x1);
-//    }
-
+    // Get position for crc in sendBuffer
     uint8_t *crc = &sendBuffer.at(record->size() + 1);
 
+    // Calculate crc and add it to sendBuffer
     if ((id == value(DiagnosticFrameId::MasterRequest))
         || (id == value(DiagnosticFrameId::SlaveRequest))) {
         // calculate checksum in traditional way for diagnostic frames.
@@ -264,6 +298,25 @@ void LinUdpGateway::cacheUdpMessage(Record *record) {
 
     // If we ends up here, we have new valid data and we set newData to false before we consume the data
     newData = false;
+
+//    Record updateRecord = *record;
+//
+//    const uint8_t ID = _packetBuffer.at(PACKET_BUFFER_ID_POS);
+//
+//    Serial.printf("Cache LIN message with ID %d\n", ID);
+
+//    if (ID != updateRecord.id()) {
+//        updateRecord = m_records->getRecordRefById(ID);
+//    }
+//
+//    if (updateRecord.id() == INVALID_LIN_ID) {
+//        // error
+//    } else {
+//        memcpy(&updateRecord.writeCache(), &_packetBuffer.at(PACKET_BUFFER_PAYLOAD_POS), updateRecord.size());
+//        updateRecord.setCacheValid(true);
+//    }
+
+
 
     Record *updateRecord = record;
     const uint8_t ID = _packetBuffer.at(PACKET_BUFFER_ID_POS);
@@ -319,7 +372,35 @@ void LinUdpGateway::runMaster() {
 
     uint8_t id = _packetBuffer.at(PACKET_BUFFER_ID_POS);
 
-    // Find record with the id from packet buffer
+    Serial.printf("Running master: Handle LIN with id %d\n", id);
+
+//    // Find record with the id from packet buffer
+//    Record record = m_records->getRecordRefById(id);
+//
+//    bool validPayload = ((m_packetBufferLength == minPacketBufferLength) ||
+//                         (m_packetBufferLength == (minPacketBufferLength + record.size())));
+//
+//    if (!validPayload) {
+//        m_config->log("Run Master: Incorrect data received over udp id");
+//        return;
+//    }
+//
+//    if (m_packetBufferLength == minPacketBufferLength) {
+//        // this is an arbitration frame
+//        if (!record.master()) {
+//            Serial.printf("This is not a master frame %d\n", record.id());
+//            writeHeader(id);
+//            // now consume the result
+//            readLinAndSendOnUdp(id);
+//        }
+//    } else {
+//        Serial.printf("This is a master frame %d\n", record.id());
+//        // this a master frame. Send it all..
+//        writeHeader(id);
+//        memcpy(&record.writeCache(), &_packetBuffer.at(PACKET_BUFFER_PAYLOAD_POS), record.size());
+//        sendOverSerial(&record);
+//    }
+
     Record *record = m_records->getRecordById(id);
 
     Serial.printf("Record found with id %d\n", record->id());
@@ -362,6 +443,23 @@ void LinUdpGateway::runSlave() {
 
         if ((Lin::addrParity(id) | id) == idByte) // Add them again and see if it match
         {
+//            // send this arbitration frame to the server.
+//            Record record = m_records->getRecordRefById(id);
+//
+//            if (record.master() || (!record.cacheValid())) {
+//                sendOverUdp(id);
+//                readLinAndSendOnUdp(id);
+//            } else {
+//                // signal-server should response with the expected payload
+//                if (record.cacheValid()) {
+//                    sendOverSerial(&record);
+//                    // this is intentionally after writing to serial which might be counterintuitive,
+//                    // in order to meet timing req for short messages
+//                    sendOverUdp(id);
+//                }
+//            }
+//            cacheUdpMessage(&record);
+
             // send this arbitration frame to the server.
             Record *record = m_records->getRecordById(id);
 
