@@ -9,7 +9,7 @@ Records::Records() {
  * @brief Returns the record on given index
  * @param index - index of the vector
  * */
-Record *Records::getRecord(int index) {
+[[nodiscard]] Record *Records::getRecord(int index) {
     Record *record = &_recordList.at(index);
     return record;
 }
@@ -24,7 +24,6 @@ Record *Records::getRecordById(int id) {
             return &record;
         }
     }
-
     return nullptr;
 }
 
