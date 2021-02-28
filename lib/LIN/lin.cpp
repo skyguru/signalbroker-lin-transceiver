@@ -40,7 +40,6 @@ void Lin::serialBreak() {
     gpio_reset_pin(GPIO_NUM_4);
     gpio_matrix_out(m_TxPin, SIG_GPIO_OUT_IDX, false, false);
 
-//  pinMode(m_TxPin, OUTPUT);
     digitalWrite(m_TxPin, LOW); // Send BREAK
 
     constexpr auto brakeEnd = (1000000UL / static_cast<unsigned long>(serialSpd));
@@ -48,13 +47,16 @@ void Lin::serialBreak() {
 
     // delayMicroseconds unreliable above 16383 see Arduino man pages
     delayMicroseconds(brakeBegin);
-
     digitalWrite(m_TxPin, HIGH); // BREAK delimiter
-
     m_Serial.begin(serialSpd);
 }
 
-
+/**
+ * @brief Calculate checksum on LIN data
+ * @param data
+ * @param data_size
+ * @return
+ */
 int Lin::calculateChecksum(const unsigned char data[], uint8_t data_size) {
     int sum = 0;
 
@@ -66,10 +68,17 @@ int Lin::calculateChecksum(const unsigned char data[], uint8_t data_size) {
     return v_checksum;
 }
 
-// according to enhanced crc
+/**
+ * Validate checksum according to enhanced crc
+ * @param data
+ * @param data_size
+ * @return
+ */
 bool Lin::validateChecksum(const unsigned char data[], uint8_t data_size) {
     uint8_t checksum = data[data_size - 1];
     uint8_t v_checksum = calculateChecksum(data, data_size - 1);
+
+    Serial.printf("Checksum validation %d %d\n", checksum, v_checksum);
 
     return checksum == v_checksum;
 }
