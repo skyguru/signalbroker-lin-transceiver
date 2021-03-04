@@ -25,9 +25,35 @@ Config::Config(uint8_t ribID, Records &records)
 void Config::init() {
     // Just start to listen to port
     if (udpClientSender.listen(udpServerConfigPort)) {
-//        udpClientSender.onPacket([&](AsyncUDPPacket packet) {
-//            Serial.println("Received");
-//        });
+           udpClientSender.onPacket([&](AsyncUDPPacket packet) {
+            std::array<char, 100> message{};
+
+            auto remoteIp = packet.remoteIP().toString().c_str();
+            auto localIp = packet.localIP();
+
+        //    if (localIp != deviceIP) {
+        //        return;
+        //    }
+
+            sprintf(message.data(), "From: %s: %d, To: %s: %d, Length: %d",
+                    remoteIp, packet.remotePort(),
+                    localIp.toString().c_str(), packet.localPort(), packet.length());
+
+            log(message.data());
+
+            m_packetBufferLength = packet.length() > m_packetBuffer.size() ? m_packetBuffer.size() : packet.length();
+            memcpy(m_packetBuffer.data(), packet.data(), m_packetBufferLength);
+
+            if (!m_lockIpAddress) {
+                ipServer = packet.remoteIP();
+                m_lockIpAddress = true;
+
+                std::array<char, 50> debugMessage{};
+                sprintf(debugMessage.data(), "Locked IPAddress: %d", m_lockIpAddress);
+                log(debugMessage.data());
+            }
+            m_newData = true;
+        });;
 
     }
 
@@ -39,9 +65,9 @@ void Config::init() {
             auto remoteIp = packet.remoteIP().toString().c_str();
             auto localIp = packet.localIP();
 
-//            if (localIp != deviceIP) {
-//                return;
-//            }
+        //    if (localIp != deviceIP) {
+        //        return;
+        //    }
 
             sprintf(message.data(), "From: %s: %d, To: %s: %d, Length: %d",
                     remoteIp, packet.remotePort(),
@@ -260,18 +286,18 @@ void Config::parseServerMessage() {
                 record.setCacheValid(false);
                 m_records.add(record);
 
-                std::array<char, 100> logMessage{};
-                sprintf(logMessage.data(), "Id: %d, size: %d, master: %d",
-                        m_records.getLastElement()->id(),
-                        m_records.getLastElement()->size(),
-                        m_records.getLastElement()->master());
-                log(logMessage.data());
+                // std::array<char, 100> logMessage{};
+                // sprintf(logMessage.data(), "Id: %d, size: %d, master: %d",
+                //         m_records.getLastElement()->id(),
+                //         m_records.getLastElement()->size(),
+                //         m_records.getLastElement()->master());
+                // log(logMessage.data());
             }
 
             // Add one more with an invalid frameID
-//            Record record{};
-//            record.setId(INVALID_LIN_ID);
-//            m_records.add(record);
+           Record record{};
+           record.setId(INVALID_LIN_ID);
+           m_records.add(record);
         }
             m_messageSizesHash = m_lastHash;
             break;
