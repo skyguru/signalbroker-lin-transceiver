@@ -34,7 +34,7 @@ public:
 
     void sendOverSerial(Record *record);
 
-    void cacheUdpMessage(Record *record);
+    void cacheUdpMessage(Record &record);
 
     bool connected() { return m_udpClient.connected(); }
 
@@ -60,7 +60,7 @@ private:
 
     // this is used by the master to send lin BREAK
     // on lin 14, 3 is fine. 2 results in some timeout
-    static constexpr uint8_t TRAFFIC_TIMEOUT = 3;
+    static constexpr uint8_t TRAFFIC_TIMEOUT = 12;
     static constexpr uint8_t QUERY_SIGNAL_SERVER_TIMEOUT = 0;
     static constexpr uint16_t DEFAULT_LIN_TIMEOUT = 1000;
 
