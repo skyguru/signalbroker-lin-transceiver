@@ -78,7 +78,7 @@ bool Lin::validateChecksum(const unsigned char data[], uint8_t data_size) {
     uint8_t checksum = data[data_size - 1];
     uint8_t v_checksum = calculateChecksum(data, data_size - 1);
 
-    Serial.printf("Checksum validation %d %d\n", checksum, v_checksum);
+//    Serial.printf("Checksum validation %d %d\n", checksum, v_checksum);
 
     return checksum == v_checksum;
 }
