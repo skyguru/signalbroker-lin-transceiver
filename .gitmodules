@@ -1,0 +1,3 @@
+[submodule "linbus/lib/LIN"]
+	path = linbus/lib/LIN
+	url = https://github.com/niclaslind/LIN
