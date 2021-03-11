@@ -1,59 +1,47 @@
-# Lin bus reader and writer
+# LIN
 
+How to setup the LIN transceiver
 
-ESP32-POE + Custom made PCB with MCP2004A. Read/write, act as a master or one or many slaves.
+## Installation 
 
-## Setup
+### Prerequisites
 
-### ESP32-POE
+For be available to upload this project to your device you need at least PlatformIO. 
+You can either install it as a [CLI application](https://docs.platformio.org/en/latest/core/index.html#) but the prefferd way is to use their extension within an [IDE](https://docs.platformio.org/en/latest/integration/ide/pioide.html#).
 
-The schematics for this solution can be found in the KiCad folder under the appropriate card/project.
- 
-#### PCB
+I guess that the most popular is to use VS Code so I will use it in the example below.
 
-Assemble the PCB. The BOM(Bill of materials) is located under doc/PCB/KiCad. 
-Use the jumper for master mode if the module shoulde be a master node.
-![PCB](https://github.com/volvo-cars/signalbroker-lin-transceiver/raw/esp32/doc/PCB.jpg)
+#### VS Code
 
-Connect the ESP32-POE to the PCB.
-![Final module](/doc/Final-module.JPG)
+* [VS Code](https://code.visualstudio.com/)
+* [PlatformIO Extension](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide)
 
-The PCB is designed to be able to have several modules in a case/box if needed.
-![Multiple modules](/doc/multiple-cards.JPG)
+If you have installed the applications above, open this folder with VS Code.  
 
 ## Configuration
 
-### ESP32-POE
+The thing you need to check/modify before upload is the rib id you assigning to the device. In order to do this, go to the main.cpp file placed in the src folder and change the variable. Remember the rib ID beacuse you need to setup the signalbroker server with this rib ID later. 
 
-#### Install software
-
-* Install VSCode https://code.visualstudio.com/
-* Install extension PlatformIO IDE https://platformio.org/platformio-ide
-* Open the folder named linbus in PlatformIO
-
-### Upload software to ESP32
-
-Upload the application to your ESP32. Make sure you don't have the ESP powered by POE (if you don't have the isolated one), if you have it powerd by POE and the USB at same time, it is a big risc that you burn the ESP32 or the connected USB-port on your computer.
-
-### Signal Server
-
-Signal sever will configure the node automatically.
-
-https://github.com/volvo-cars/signalbroker-server
-
-Make sure to ports are open on the linux machine hosting the signalserver.
-
-For ubuntu 16.04 you would need to open some port...
-
-```bash
-sudo ufw allow 2013
-sudo ufw allow 2014
-sudo ufw allow 4000
+```cpp 
+constexpr uint8_t rib_id = 1;
 ```
 
-And configure your interfaces.json accordingly
+Now you are ready to upload this to your device!!
 
-```json
+### Modify the interface.json on the server side
+
+When you have uploaded the firmware to your ESP32-devices and assinged them with unique rib ID's. You need to configure the interfaces.json file on signalbroker-server side in the following way:
+
+* namespace - Unique namespace name (Tip is to use Linbus and mode (master/slave) eg: LIN14-M)
+* device_identifier - rib ID that you assigned to the device
+* server/targetport - needs to be unique port for each device
+* device_name - need as well be unique, to follow the example above for namespace: lin14m
+* node_mode: master/slave depending on how the device is connected to the LIN bus
+* ldf_file - paste the link to where you have the LDF file
+* schedule_file - same as ldf_file
+* schedule_table_name - which schduler you want to use when you are running the device as master
+* schedule_autostart - master: true, slave: false
+```json 
 {
       "namespace": "LinSlave",
       "type": "lin",
@@ -71,40 +59,3 @@ And configure your interfaces.json accordingly
       "schedule_autostart": false
 }
 ```
-
-To run the ESP32 as a Slave, set the properties like this ones below.
-
-```json
-{
-    "node_mode": "master",
-    "schedule_autostart": false
-}
-```
-
-And to run it as a Master, set the properties like this ones below.
-
-```json
-{
-    "node_mode": "master",
-    "schedule_autostart": true
-}
-```
-
-## Starting
-Once the ESP32 is powered on it will start by fetching configuration from the signal server. (It will keep trying feting configuration until it succeeds)
-
-## Debugging
-The arduino will by default output it's logs on port 3000, again, make sure to unblock that port in you firewall (check top of ino file to switch port).
-
-Logging can the be traced on ubunto 16.04 by issuing
-
-```bash
-sudo tcpdump udp port 3000 -vv -X
-```
-
-## Nice to know
-In slave mode the esp32 keeps a write buffer which it writes every time the master scheduler queries it. This buffer is never cleared (the same reasoning goes for the signal server), so in practice, if you tampered with the wrong signal you should restart the signal server which will reset the esp32.
-
-## References
-
-* [MCP2004A documentation](http://ww1.microchip.com/downloads/en/DeviceDoc/20002230G.pdf)
