@@ -4,6 +4,12 @@ How to setup the LIN transceiver
 
 ## Installation 
 
+After cloning do
+```bash
+git submodule init
+git submodule update
+```
+
 ### Prerequisites
 
 For be available to upload this project to your device you need at least PlatformIO. 
