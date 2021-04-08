@@ -8,29 +8,49 @@
 class Record {
 
 public:
+    /**
+     * A record defines a LIN-frame
+     */
     constexpr Record()
-            : m_ID{0},
-              m_Size{0},
-              m_Master{0},
-              m_CacheValid{false} {}
+            : id_{0},
+              size_{0},
+              master_{0},
+              cacheValid_{false} {}
 
 public:
-    constexpr uint8_t id() const { return m_ID; }
 
-    constexpr uint8_t size() const { return m_Size; }
+    /**
+     * @brief Get the LINFrame id
+     * @return record id
+     */
+    constexpr uint8_t id() const { return id_; }
 
-    constexpr uint8_t master() const { return m_Master; }
+    /**
+     * @brief Get the LINFrame size
+     * @return record size
+     */
+    constexpr uint8_t size() const { return size_; }
 
-    constexpr bool cacheValid() const { return m_CacheValid; }
+    /**
+     * @brief Get the LINFrame type (master frame or not)
+     * @return type of record (master or arbitration frame)
+     */
+    constexpr uint8_t master() const { return master_; }
 
-    constexpr uint8_t getWriteCacheByteByIndex(int index) const { return m_WriteCache.at(index); }
+    /**
+     * @brief Check if the record cache is valid or not
+     * @return cache status
+     */
+    constexpr bool cacheValid() const { return cacheValid_; }
+
+    constexpr uint8_t getWriteCacheByteByIndex(int index) const { return writeCache_.at(index); }
 
     /**
     * @brief Return the entire write cache-buffer
     * @return write cache buffer
     * */
     std::array<uint8_t, 8> &writeCache() {
-        return m_WriteCache;
+        return writeCache_;
     }
 
     /**
@@ -38,7 +58,7 @@ public:
     * @param id: Id of the signal frame
     * */
     void setId(uint8_t id) {
-        m_ID = id;
+        id_ = id;
     };
 
     /**
@@ -46,7 +66,7 @@ public:
     * @param size: Size of the signal frame
     * */
     void setSize(uint8_t size) {
-        m_Size = size;
+        size_ = size;
     };
 
     /**
@@ -54,7 +74,7 @@ public:
     * @param master: 0=slave, 1=master
     * */
     void setMaster(uint8_t master) {
-        m_Master = master;
+        master_ = master;
     };
 
     /**
@@ -62,7 +82,7 @@ public:
     * @param cacheValid: True/false
     * */
     void setCacheValid(bool cacheValid) {
-        m_CacheValid = cacheValid;
+        cacheValid_ = cacheValid;
     }
 
     /**
@@ -70,13 +90,21 @@ public:
     * @param writeCache: array of data
     * */
     void setWriteCache(std::array<uint8_t, 8> *writeCache) {
-        memcpy(&m_WriteCache, writeCache, writeCache->size());
+        memcpy(&writeCache_, writeCache, writeCache->size());
     }
 
 private:
-    std::array<uint8_t, 8> m_WriteCache{};
-    uint8_t m_ID;
-    uint8_t m_Size;
-    uint8_t m_Master;
-    bool m_CacheValid;
+    std::array<uint8_t, 8> writeCache_{};
+
+    // LINFrame-ID
+    uint8_t id_;
+
+    // LINFrame-Size
+    uint8_t size_;
+
+    // LINFrame If the frame is a master frame(1) or arbitration frame(0)
+    uint8_t master_;
+
+    // LINFrame flag for if the record cache is valid
+    bool cacheValid_;
 };
