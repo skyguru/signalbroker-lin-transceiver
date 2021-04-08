@@ -1,8 +1,9 @@
 #include "Config.hpp"
+
 #include <Arduino.h>
 
 /**
- * @breif Create a config object
+ * @brief Create a config object
  * @param ribID Your device ribID
  * @param records A storage of records, so you can add records that's received from config
  */
@@ -16,11 +17,10 @@ Config::Config(uint8_t ribID, Records &records)
           m_nodeModeHash{},
           m_packetBufferLength{},
           m_lastHash{0xFFFF},
-          m_records{records} {
-}
+          m_records{records} {}
 
 /**
- * @breif Init the config-udp
+ * @brief Init the config-udp
  **/
 void Config::init() {
     // Just start to listen to port
@@ -45,20 +45,27 @@ void Config::init() {
                 ipServer = packet.remoteIP();
                 m_lockIpAddress = true;
 
-                std::array<char, 50> debugMessage{};
-                sprintf(debugMessage.data(), "Locked IPAddress: %d", m_lockIpAddress);
-//                log(debugMessage.data());
+                // std::array<char, 50> debugMessage{};
+                // sprintf(debugMessage.data(), "Locked IPAddress: %d", m_lockIpAddress);
+                // log(debugMessage.data());
             }
             m_newData = true;
         });
     }
+
+    xTaskCreate(&startSendHeartBeat,
+                "Heartbeat",
+                1000,
+                this,
+                1,
+                nullptr);
 }
 
 /**
- * @breif Sending heartbeat, parse server message & verify config
+ * @brief Sending heartbeat, parse server message & verify config
  * */
 void Config::run() {
-    sendHeartbeat();
+// sendHeartbeat();
     parseServerMessage();
     verifyConfig();
 }
@@ -67,15 +74,17 @@ void Config::run() {
  * @brief Sending heartbeat to server every X millis sec
  * */
 void Config::sendHeartbeat() {
-    for (static ulong lastHeartbeat = 0; millis() > lastHeartbeat + _heartbeatPeriod; lastHeartbeat = millis()) {
-        AsyncUDPMessage heartbeat{};
+    vTaskDelay(500);
+    while (true) {
+        AsyncUDPMessage heartbeat{
+        };
         heartbeat.write(HEADER);
         heartbeat.write(m_ribID);
         heartbeat.write(m_lastHash.u8.high);
         heartbeat.write(m_lastHash.u8.low);
         heartbeat.write(HEART_BEAT);
 
-        //payload size
+//payload size
         heartbeat.write(value(0x00));
         heartbeat.write(value(21));
 
@@ -101,7 +110,7 @@ void Config::sendHeartbeat() {
         heartbeat.write(local.u8.high);
         heartbeat.write(local.u8.low);
 
-        //sync
+//sync
         local.u16 = m_synchCount;
         heartbeat.write(value(HeartbeatModes::HEART_BEAT_SYNC_COUNT));
         heartbeat.write(local.u8.high);
@@ -120,11 +129,12 @@ void Config::sendHeartbeat() {
         udpClientSender.broadcast(heartbeat);
 
         clearCounters();
+        vTaskDelay(heartbeatPeriod_);
     }
 }
 
 /**
- * @breif Verifying that the data we got from server seems valid
+ * @brief Verifying that the data we got from server seems valid
  * */
 void Config::verifyConfig() {
     bool goodConfig = false;
@@ -146,7 +156,7 @@ void Config::verifyConfig() {
         }
 
         if (!goodConfig) {
-            // Wait 500ms
+            // Wait a little time in between
             delay(200);
             parseServerMessage();
         }
@@ -158,9 +168,9 @@ void Config::verifyConfig() {
  * @param item: Object we want to have info about
  * */
 void Config::requestConfigItem(uint8_t item) {
-    std::array<char, 50> logMessage{};
-    sprintf(logMessage.data(), "ReRequesting config item 0x%x", item);
-//    log(logMessage.data());
+    std::array<char, 50> logMessage{
+    };
+    sprintf(logMessage.data(), "Requesting config item 0x%x", item);
 
     AsyncUDPMessage message{};
 
@@ -190,7 +200,7 @@ void Config::parseServerMessage() {
     }
 
     if (m_ribID != m_packetBuffer.at(value(Offsets::RIB_ID_OFFSET))) {
-        //This packet was intended for another RIB. If broadcasting is used that is not an error, but we are done.
+        // This packet was intended for another RIB. If broadcasting is used that is not an error, but we are done.
         return;
     }
 
@@ -254,6 +264,11 @@ void Config::parseServerMessage() {
             Record record{};
             record.setId(INVALID_LIN_ID);
             m_records.add(record);
+
+            for (auto &r : m_records.getRecords()) {
+                Serial.printf("Id %d size %d master: %d chacevalid: %d\n", r.id(), r.size(), r.master(),
+                              r.cacheValid());
+            }
         }
             m_messageSizesHash = m_lastHash;
             break;
@@ -271,7 +286,7 @@ void Config::parseServerMessage() {
 }
 
 /**
- * @breif Depending on the state of LOG_TO_SERIAL we either log to serialport or udp
+ * @brief Depending on the state of LOG_TO_SERIAL we either log to serialport or udp
  * @param message: The message that will be printed in the log
  * */
 void Config::log(const char *message) {
@@ -283,7 +298,7 @@ void Config::log(const char *message) {
 }
 
 /**
- * @breif Sending log message to Udp-client instead of Serialport
+ * @brief Sending log message to Udp-client instead of Serialport
  * @param message: The message that will be printed in the log
  * */
 void Config::logToServer(const char *message) {
@@ -300,7 +315,7 @@ void Config::logToServer(const char *message) {
 }
 
 /**
- * @breif Clear all counters
+ * @brief Clear all counters
  * */
 void Config::clearCounters() {
     m_rxOverLin = 0;
@@ -310,4 +325,12 @@ void Config::clearCounters() {
     m_synchCount = 0;
     m_synchedPackages = 0;
     m_unSynchedPackages = 0;
+}
+
+/**
+ * @brief Call member-function sendHeartbeat
+ * @param pvParameter class where sendHeartbeat function lives
+ * */
+void Config::startSendHeartBeat(void *pvParameter) {
+    reinterpret_cast<Config *>(pvParameter)->sendHeartbeat();
 }

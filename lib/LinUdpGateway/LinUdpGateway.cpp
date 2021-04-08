@@ -74,7 +74,7 @@ uint8_t LinUdpGateway::synchHeader() {
         frameSynch = frameId;
         bytesReceived = m_lin.serial().readBytes(&frameId, bytesExpected);
 
-        //        Serial.printf("FrameBreak: %d, FrameSynch: %d, FrameId: %d\n", frameBreak, frameSynch, frameId);
+        //    Serial.printf("FrameBreak: %d, FrameSynch: %d, FrameId: %d\n", frameBreak, frameSynch, frameId);
 
         if (bytesReceived != bytesExpected) {
             std::array<char, 100> message{};
@@ -110,12 +110,10 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id) {
     m_lin.serial().setTimeout(TRAFFIC_TIMEOUT);
     readBuffer.at(0) = static_cast<uint8_t>((Lin::addrParity(id) | id));
 
-//    Serial.printf("Read LIN message with id %d and send on UDP\n", id);
     auto record = m_records->getRecordRefById(id);
 
     // If the records couldn't be found, go out from here
     if (record.id() == INVALID_LIN_ID) {
-//        Serial.printf("Invalid id %d\n", record.id());
         return;
     }
 
@@ -127,7 +125,7 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id) {
 
     // If these values doesn't match, return.
     if (bytesReceived != bytesExpected) {
-//        Serial.printf("Received %d bytes mismatch with expected %d\n", bytesReceived, bytesExpected);
+        Serial.printf("Received %d bytes mismatch with expected %d\n", bytesReceived, bytesExpected);
         return;
     }
 
@@ -176,7 +174,6 @@ void LinUdpGateway::sendOverUdp(uint8_t id, const uint8_t *payload, uint8_t size
 
     // Don't continue if payload-size is greater then total size of server
     if (size > 11) {
-//        Serial.println("Payload size to big!");
         return;
     }
 
@@ -208,8 +205,6 @@ void LinUdpGateway::sendOverSerial(Record *record) {
 
     uint8_t id = record->id();
 
-//    Serial.printf("Send over serial %d\n", record->id());
-
     // Add Frame ID with parity to sendBuffer
     sendBuffer.at(0) = Lin::addrParity(id) | id;
 
@@ -235,12 +230,11 @@ void LinUdpGateway::sendOverSerial(Record *record) {
 
 /**
  * @brief
- * @param record A record pointer
+ * @param record A pointer to a Record
  * */
 void LinUdpGateway::cacheUdpMessage(Record *record) {
     // If we don't have received any new data or the packet buffer length is lesser then 4 bytes
     if (!newData || (m_packetBufferLength < 4 && (m_packetBufferLength != 0))) {
-        //        m_config->log("Signal server payload too short or no new data has been received");
         return;
     }
 
@@ -248,11 +242,10 @@ void LinUdpGateway::cacheUdpMessage(Record *record) {
     newData = false;
 
     Record *updateRecord = record;
-
     const uint8_t ID = _packetBuffer.at(PACKET_BUFFER_ID_POS);
 
+    // If the id doesn't match with the selected record, update the record to the right one
     if (ID != updateRecord->id()) {
-//        Serial.printf("Mismatch ID %d - %d, set correct ID\n", ID, updateRecord->id());
         updateRecord = &m_records->getRecordRefById(ID);
     }
 
@@ -287,39 +280,37 @@ void LinUdpGateway::run() {
 void LinUdpGateway::runMaster() {
     constexpr static int minPacketBufferLength = 5;
 
-    if (!newData) {
+    // If we haven't received any new data or if the UDP data isn't greater than 5
+    if (!newData || m_packetBufferLength < minPacketBufferLength) {
         return;
     }
 
     newData = false;
 
-    // Wait until UDP-message payload is greater then 5
-    if (m_packetBufferLength < minPacketBufferLength) {
-        return;
-    }
-
+    // Get the FrameID from packetBuffer
     uint8_t id = _packetBuffer.at(PACKET_BUFFER_ID_POS);
-
-    Serial.printf("Running master: Handle LIN with id %d\n", id);
 
     // Find record with the id from packet buffer
     Record record = m_records->getRecordRefById(id);
 
+    // Check if payload is valid
+    // It's valid when the packet buffer length is equal to 5 (arbitration frame) or 5 + LIN frame size (master frame)
     bool validPayload = ((m_packetBufferLength == minPacketBufferLength) ||
                          (m_packetBufferLength == (minPacketBufferLength + record.size())));
 
+    // If not, don't go further
     if (!validPayload) {
-//        m_config->log("Run Master: Incorrect data received over udp id");
         return;
     }
 
-    if (m_packetBufferLength == minPacketBufferLength) {
+    // If the packet length is equal to 5 and the record isn't a master
+    // Then it is an arbitration frame...
+    if (m_packetBufferLength == minPacketBufferLength && !record.master()) {
         // this is an arbitration frame
-        if (!record.master()) {
-            writeHeader(id);
-            // now consume the result
-            readLinAndSendOnUdp(id);
-        }
+        // Send arbitration message (only the header)
+        writeHeader(id);
+        // wait until the slave respond and consume the result
+        readLinAndSendOnUdp(id);
     } else {
         // this a master frame. Send it all..
         writeHeader(id);
