@@ -22,7 +22,7 @@
  * @note This project is based on a project from Aleksandar Filipov
  *          https://github.com/volvo-cars/signalbroker-lin-transceiver
  * 
- * @version 1.0.0
+ * @version 2.0.0
  * */
 
 #include <Arduino.h>
