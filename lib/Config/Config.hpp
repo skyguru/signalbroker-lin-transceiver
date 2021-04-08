@@ -92,7 +92,9 @@ public:
     void setDeviceIP(const IPAddress &address) { deviceIP = address; };
 
 private:
-    void sendHeartbeat();
+    [[noreturn]] void sendHeartbeat();
+
+    static void startSendHeartBeat(void *);
 
     void parseServerMessage();
 
@@ -105,18 +107,17 @@ private:
 private:
     static constexpr auto udpServerConfigPort = 4001;
     static constexpr auto udpTargetConfigPort = 4000;
-    static constexpr int _heartbeatPeriod = 3000;
+    static constexpr int heartbeatPeriod_ = 2500;
     static constexpr uint8_t HEADER = 0x04;
     static constexpr uint8_t HOST_PORT = (1u << 0u);      // 1
     static constexpr uint8_t CLIENT_PORT = (1u << 1u);    // 2
     static constexpr uint8_t MESSAGE_SIZES = (1u << 2u);  // 4
     static constexpr uint8_t NODE_MODE = (1u << 3u);      // 8
     static constexpr uint8_t HEART_BEAT = (1u << 4u);     // 16
-    static constexpr uint8_t REASSIGN_RIBID = (1u << 5u); // 32
     static constexpr uint8_t LOGGER = 0x60;               // 96
 
-    uint8_t m_ribID;      // This is calculated locally and part of the message header
-    AsyncUDP udpClientSender; // Udp-client that sends data to signal broker
+    uint8_t m_ribID;            // This is calculated locally and part of the message header
+    AsyncUDP udpClientSender;   // Udp-client that sends data to signal broker
     AsyncUDP udpClientReceiver; // Udp-client that receives data from the signal broker
 
     uint16_t m_hostPort; // host port to be used for udp-client in LinUpdGateway
