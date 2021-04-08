@@ -38,7 +38,7 @@ public:
             case SYSTEM_EVENT_ETH_START:
             {
                 Serial.printf("%s ETH Started\n", TAG);
-                String hostname = "esp32-ethernet " + String(config->ribID());
+                String hostname = "LinTransceiver" + String(config->ribID());
                 ETH.setHostname(hostname.c_str());
                 break;
             }
