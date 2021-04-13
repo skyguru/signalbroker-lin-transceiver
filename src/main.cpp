@@ -44,6 +44,7 @@ void setup()
     Serial.begin(115200);
     Serial1.begin(19200);
     ethClient.connect(&config);
+
     // Init configuration
     config.init();
 }
