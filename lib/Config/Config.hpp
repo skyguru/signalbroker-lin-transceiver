@@ -7,10 +7,13 @@
 #include "Records.hpp"
 #include "Common.hpp"
 
-class Config {
-    union DoubleByte {
+class Config
+{
+    union DoubleByte
+    {
         uint16_t u16;
-        struct U8 {
+        struct U8
+        {
             uint8_t low;
             uint8_t high;
         } u8;
@@ -26,13 +29,15 @@ public:
     * 
     * "UNDEFINED" means that you haven't chosen any mode yet
     */
-    enum class NodeModes : uint8_t {
+    enum class NodeModes : uint8_t
+    {
         SLAVE = 0,
         MASTER = 1,
         UNDEFINED = 0xFF
     };
 
-    enum class HeartbeatModes : uint8_t {
+    enum class HeartbeatModes : uint8_t
+    {
         HEART_BEAT_TX_LIN = 1,
         HEART_BEAT_RX_LIN = 2,
         HEART_BEAT_TX_UDP = 3,
@@ -42,7 +47,8 @@ public:
         HEART_BEAT_SYNCHED_PACKAGES = 7
     };
 
-    enum class Offsets : uint8_t {
+    enum class Offsets : uint8_t
+    {
         HEADER_OFFSET = 0,
         RIB_ID_OFFSET = 1,
         HASH_HIGH_OFFSET = 2,
@@ -92,9 +98,7 @@ public:
     void setDeviceIP(const IPAddress &address) { deviceIP = address; };
 
 private:
-    [[noreturn]] void sendHeartbeat();
-
-    static void startSendHeartBeat(void *);
+    void sendHeartbeat();
 
     void parseServerMessage();
 
@@ -109,12 +113,12 @@ private:
     static constexpr auto udpTargetConfigPort = 4000;
     static constexpr int heartbeatPeriod_ = 2500;
     static constexpr uint8_t HEADER = 0x04;
-    static constexpr uint8_t HOST_PORT = (1u << 0u);      // 1
-    static constexpr uint8_t CLIENT_PORT = (1u << 1u);    // 2
-    static constexpr uint8_t MESSAGE_SIZES = (1u << 2u);  // 4
-    static constexpr uint8_t NODE_MODE = (1u << 3u);      // 8
-    static constexpr uint8_t HEART_BEAT = (1u << 4u);     // 16
-    static constexpr uint8_t LOGGER = 0x60;               // 96
+    static constexpr uint8_t HOST_PORT = (1u << 0u);     // 1
+    static constexpr uint8_t CLIENT_PORT = (1u << 1u);   // 2
+    static constexpr uint8_t MESSAGE_SIZES = (1u << 2u); // 4
+    static constexpr uint8_t NODE_MODE = (1u << 3u);     // 8
+    static constexpr uint8_t HEART_BEAT = (1u << 4u);    // 16
+    static constexpr uint8_t LOGGER = 0x60;              // 96
 
     uint8_t m_ribID;            // This is calculated locally and part of the message header
     AsyncUDP udpClientSender;   // Udp-client that sends data to signal broker
