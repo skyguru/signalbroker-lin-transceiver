@@ -6,13 +6,14 @@
 
 #include "Record.hpp"
 
-class Records {
+class Records
+{
 public:
-
     /**
      * Storing records in a vector
      */
-    Records() {
+    Records()
+    {
         // Reserving some slots, to reduce the amount of times of reallocation
         _recordList.reserve(30);
     };
@@ -21,40 +22,44 @@ public:
     * @brief Add a record to the vector
     * @param record - Record you want to add
     * */
-    void add(Record record) {
+    void add(Record record)
+    {
         _recordList.push_back(record);
-    }
-
-    /**
-     * @brief Get a record on a indicated index
-     * @param index - Index that you want to access in the vector
-     * @return The record on the index
-     */
-    Record &getRecordRef(int index) {
-        return _recordList.at(index);
     }
 
     /**
      * @brief Get a record that match the indicated index
      * @param id - The id of the record you want to access
-     * @return the record with the matching id if exists, otherwise return the invalid recrod
+     * @return the record with the matching id if exists, otherwise return a nullptr
      */
-    Record &getRecordRefById(int id) {
-        for (auto &record : _recordList) {
-            if (record.id() == id) {
-                return record;
+    Record *getRecordById(int id)
+    {
+        Record *foundRecord = nullptr;
+        for (Record &record : _recordList)
+        {
+            if (record.id() == id)
+            {
+                foundRecord = &record;
+                break;
             }
         }
+        return foundRecord;
+    }
 
-        // if the ID isn't found, return the invalid record
-        return _recordList.back();
+    /**
+     * @brief Clear all entries from the recordList
+     */
+    void clearRecords()
+    {
+        _recordList.clear();
     }
 
     /**
      * @brief Get all records
      * @return the entire vector of records
      */
-    std::vector<Record> getRecords() {
+    std::vector<Record> getRecords()
+    {
         return _recordList;
     }
 
