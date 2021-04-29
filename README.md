@@ -6,10 +6,15 @@ How to setup the LIN transceiver
 
 ### Prerequisites
 
+
+Download USB-drivers for the ESP-device, choose driver depending on OS here:
+https://www.olimex.com/Products/IoT/ESP32/ESP32-POE/open-source-hardware 
+
 For be available to upload this project to your device you need at least PlatformIO. 
 You can either install it as a [CLI application](https://docs.platformio.org/en/latest/core/index.html#) but the prefferd way is to use their extension within an [IDE](https://docs.platformio.org/en/latest/integration/ide/pioide.html#).
 
 I guess that the most popular is to use VS Code so I will use it in the example below.
+
 
 #### VS Code
 
