@@ -34,16 +34,14 @@ public:
      */
     Record *getRecordById(int id)
     {
-        Record *foundRecord = nullptr;
         for (Record &record : _recordList)
         {
             if (record.id() == id)
             {
-                foundRecord = &record;
-                break;
+                return &record;
             }
         }
-        return foundRecord;
+        return nullptr;
     }
 
     /**
