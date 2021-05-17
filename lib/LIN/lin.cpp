@@ -23,56 +23,56 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "lin.hpp"
-#include "HardwareSerial.h"
 
 #include <array>
 
-void Lin::begin() {
-    m_Serial.begin(serialSpd);
-}
+#include "HardwareSerial.h"
+
+void Lin::begin() { m_Serial.begin(serialSpd); }
 
 void Lin::serialBreak() {
-    constexpr auto LIN_BREAK_DURATION = 15;
+    constexpr auto LIN_BREAK_DURATION = 13;
+    constexpr auto brakeEnd =
+        (1000000UL / static_cast<unsigned long>(serialSpd));
+    constexpr auto brakeBegin = brakeEnd * LIN_BREAK_DURATION;
 
     m_Serial.flush();
-    delay(1);
     m_Serial.end();
-    gpio_reset_pin(GPIO_NUM_4);
     gpio_matrix_out(m_TxPin, SIG_GPIO_OUT_IDX, false, false);
-
-    digitalWrite(m_TxPin, LOW); // Send BREAK
-
-    constexpr auto brakeEnd = (1000000UL / static_cast<unsigned long>(serialSpd));
-    constexpr auto brakeBegin = brakeEnd * LIN_BREAK_DURATION;
+    gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_NUM_4, 0);  // Send BREAK
 
     // delayMicroseconds unreliable above 16383 see Arduino man pages
     delayMicroseconds(brakeBegin);
-    digitalWrite(m_TxPin, HIGH); // BREAK delimiter
+    m_Serial.flush();
+    gpio_set_level(GPIO_NUM_4, 1);
+    delayMicroseconds(brakeEnd);
+
     m_Serial.begin(serialSpd);
 }
 
 /**
  * @brief Calculate checksum on LIN data
- * @param data
- * @param data_size
- * @return
+ * @param data bytes of data
+ * @param data_size size of data
+ * @return the calculated checksum
  */
 int Lin::calculateChecksum(const unsigned char data[], uint8_t data_size) {
     int sum = 0;
 
     for (int i = 0; i < data_size; i++) {
-        sum = sum + data[i];
+        sum += data[i];
     }
 
-    const auto v_checksum = static_cast<uint8_t>(~(sum % 0xffu));
+    const uint8_t v_checksum = static_cast<uint8_t>(~(sum % 0xffu));
     return v_checksum;
 }
 
 /**
- * Validate checksum according to enhanced crc
- * @param data
- * @param data_size
- * @return
+ * @brief Validate checksum according to enhanced crc
+ * @param data - data array
+ * @param data_size - size of array
+ * @return whether the checksum is valid or not
  */
 bool Lin::validateChecksum(const unsigned char data[], uint8_t data_size) {
     uint8_t checksum = data[data_size - 1];
