@@ -12,19 +12,16 @@ LinUdpGateway::LinUdpGateway(HardwareSerial &serial, Config &config,
 /**
  * @brief Init the gateway, with lin-serialport and the udp-client config
  * */
-void LinUdpGateway::init()
-{
+void LinUdpGateway::init() {
     m_lin.begin();
 
-    if (m_udpClient.connect(m_config->serverIp(), m_config->hostPort()))
-    {
+    if (m_udpClient.connect(m_config->serverIp(), m_config->hostPort())) {
         Serial.printf("Connected to host port: %d\n", m_config->hostPort());
         // Callback method when package arrives on udp
         m_udpClient.onPacket([&](const AsyncUDPPacket &packet) {});
     }
 
-    if (m_udpListen.listen(m_config->clientPort()))
-    {
+    if (m_udpListen.listen(m_config->clientPort())) {
         Serial.printf("Connected to client port: %d\n", m_config->clientPort());
         // Callback method when package arrives on udp
         m_udpListen.onPacket([&](AsyncUDPPacket packet) {
@@ -33,7 +30,8 @@ void LinUdpGateway::init()
                                        : packet.length();
             memcpy(&_packetBuffer, packet.data(), m_packetBufferLength);
 
-            // Serial.printf("Recieved data: with length %d\n", packet.length());
+            // Serial.printf("Recieved data: with length %d\n",
+            // packet.length());
 
             m_config->incrementRxOverUdp();
             newData = true;
@@ -45,12 +43,11 @@ void LinUdpGateway::init()
  * @brief Write LIN frame-header (includes break, synch & id)
  * @param id - Frame id on LIN-bus
  * */
-void LinUdpGateway::writeHeader(uint8_t id)
-{
+void LinUdpGateway::writeHeader(uint8_t id) {
     std::array<uint8_t, 2> echo{};
-    m_lin.serialBreak();                            // Generate the low signal that exceeds 1 char.
-    m_lin.serial().write(SYN_FIELD);                // Sync byte
-    m_lin.serial().write(Lin::addrParity(id) | id); // ID byte
+    m_lin.serialBreak();  // Generate the low signal that exceeds 1 char.
+    m_lin.serial().write(SYN_FIELD);                 // Sync byte
+    m_lin.serial().write(Lin::addrParity(id) | id);  // ID byte
 
     // lin transceiver will echo back, just consume the data.
     m_lin.serial().readBytes(echo.data(), echo.size());
@@ -61,8 +58,7 @@ void LinUdpGateway::writeHeader(uint8_t id)
  *          we expect this to be the header if it's not read bytes until
  * conditions are met. we now should have BREAK, SYN_FIELD followed by ID.
  * */
-uint8_t LinUdpGateway::synchHeader()
-{
+uint8_t LinUdpGateway::synchHeader() {
     std::array<uint8_t, 3> synchBuffer{};
 
     auto bytesReceived =
@@ -77,8 +73,7 @@ uint8_t LinUdpGateway::synchHeader()
 
     boolean match = (frameBreak == BREAK) && (frameSynch == SYN_FIELD);
 
-    while (!match)
-    {
+    while (!match) {
         int bytesExpected = 1;
 
         // align the buffer.
@@ -89,8 +84,7 @@ uint8_t LinUdpGateway::synchHeader()
         //    Serial.printf("FrameBreak: %d, FrameSynch: %d, FrameId: %d\n",
         //    frameBreak, frameSynch, frameId);
 
-        if (bytesReceived != bytesExpected)
-        {
+        if (bytesReceived != bytesExpected) {
             std::array<char, 100> message{};
             sprintf(message.data(),
                     "Timeout2: Bytes expected: %d, bytes received: %d, "
@@ -105,8 +99,7 @@ uint8_t LinUdpGateway::synchHeader()
 
     m_config->incrementSynchedPackages();
 
-    if (synchTries > 0)
-    {
+    if (synchTries > 0) {
         m_config->setSynchedCount(synchTries);
         m_config->incrementUnSynchedPackages();
     }
@@ -118,8 +111,7 @@ uint8_t LinUdpGateway::synchHeader()
  * @param id - Frame id on LIN-bus
  *
  * */
-void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
-{
+void LinUdpGateway::readLinAndSendOnUdp(uint8_t id) {
     // read buffer  0  1  2        3        4       10
     //              id payload1 payload2...         crc
     // count        0        1        2
@@ -129,17 +121,9 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
     readBuffer.at(0) = static_cast<uint8_t>((Lin::addrParity(id) | id));
 
     Record *record = m_records->getRecordById(id);
-    if (record == nullptr)
-    {
+    if (record == nullptr) {
         return;
     }
-    // auto record = m_records->getRecordRefById(id);
-
-    // If the records couldn't be found, go out from here
-    // if (record.id() == INVALID_LIN_ID)
-    // {
-    // return;
-    // }
 
     // Bytes expected is record size + one byte for crc
     const int bytesExpected = record->size() + 1;
@@ -149,10 +133,9 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
         m_lin.serial().readBytes(&readBuffer.at(1), bytesExpected);
 
     // If these values doesn't match, return.
-    if (bytesReceived != bytesExpected)
-    {
-        Serial.printf("Received %d bytes mismatch with expected %d\n",
-                      bytesReceived, bytesExpected);
+    if (bytesReceived != bytesExpected) {
+        // Serial.printf("Received %d bytes mismatch with expected %d\n",
+        //            bytesReceived, bytesExpected);
         return;
     }
 
@@ -167,21 +150,17 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
     // In case the the frame is a diagnostic frame, calculate the crc without id
     // (old LIN 1.0 way)
     if ((id == value(DiagnosticFrameId::MasterRequest)) ||
-        (id == value(DiagnosticFrameId::SlaveRequest)))
-    {
+        (id == value(DiagnosticFrameId::SlaveRequest))) {
         // calculate checksum in traditional way for diagnostic frames.
         crc_valid = Lin::validateChecksum(&readBuffer.at(1), bytesExpected);
-    }
-    else
-    {
+    } else {
         // Checksum considering payload-size + id + checksum
         crc_valid = Lin::validateChecksum(&readBuffer.at(0), bytesExpected + 1);
     }
 
     // If the calculated crc is the same as the one received on the lin-bus,
     // then let's send it to the server
-    if (crc_valid)
-    {
+    if (crc_valid) {
         sendOverUdp(id, &readBuffer.at(1), record->size());
     }
 
@@ -195,8 +174,7 @@ void LinUdpGateway::readLinAndSendOnUdp(uint8_t id)
  * @note We are sending a lin-id with empty bytes when we want to pull signals
  * from a slave
  * */
-void LinUdpGateway::sendOverUdp(uint8_t id)
-{
+void LinUdpGateway::sendOverUdp(uint8_t id) {
     constexpr uint8_t empty = 0;
     sendOverUdp(id, &empty, 0);
 }
@@ -208,13 +186,12 @@ void LinUdpGateway::sendOverUdp(uint8_t id)
  * @param size - Size of payload
  * */
 void LinUdpGateway::sendOverUdp(uint8_t id, const uint8_t *payload,
-                                uint8_t size)
-{
+                                uint8_t size) {
     std::array<uint8_t, 13> toServer{};
 
-    // Don't continue if payload-size is greater then total size of server
-    if (size > 11)
-    {
+    // Don't continue if payload-size is greater then total size of
+    // server-payload
+    if (size > 11) {
         return;
     }
 
@@ -237,8 +214,7 @@ void LinUdpGateway::sendOverUdp(uint8_t id, const uint8_t *payload,
  * @brief Send record info over serial (LIN-serialport)
  * @param record: which record you want to send
  * */
-void LinUdpGateway::sendOverSerial(Record *record)
-{
+void LinUdpGateway::sendOverSerial(Record *record) {
     // The server expect the data is coming in this order
     // first byte is id, following by payload (5-7 bytes) and last the crc
 
@@ -258,14 +234,11 @@ void LinUdpGateway::sendOverSerial(Record *record)
 
     // Calculate crc and add it to sendBuffer
     if ((id == value(DiagnosticFrameId::MasterRequest)) ||
-        (id == value(DiagnosticFrameId::SlaveRequest)))
-    {
+        (id == value(DiagnosticFrameId::SlaveRequest))) {
         // calculate checksum in traditional way for diagnostic frames.
         crc[0] =
             (uint8_t)Lin::calculateChecksum(&sendBuffer.at(1), record->size());
-    }
-    else
-    {
+    } else {
         crc[0] = (uint8_t)Lin::calculateChecksum(sendBuffer.data(),
                                                  record->size() + 1);
     }
@@ -280,12 +253,10 @@ void LinUdpGateway::sendOverSerial(Record *record)
  * @brief
  * @param record A pointer to a Record
  * */
-void LinUdpGateway::cacheUdpMessage(Record *record)
-{
+void LinUdpGateway::cacheUdpMessage(Record *record) {
     // If we don't have received any new data or the packet buffer length is
     // lesser then 4 bytes
-    if (!newData)
-    {
+    if (!newData) {
         return;
     }
 
@@ -293,8 +264,7 @@ void LinUdpGateway::cacheUdpMessage(Record *record)
     // before we consume the data
     newData = false;
 
-    if ((m_packetBufferLength < 4 && (m_packetBufferLength != 0)))
-    {
+    if ((m_packetBufferLength < 4 && (m_packetBufferLength != 0))) {
         return;
     }
 
@@ -303,17 +273,17 @@ void LinUdpGateway::cacheUdpMessage(Record *record)
 
     // If the id doesn't match with the selected record, update the record to
     // the right one
-    if (ID != updateRecord->id())
-    {
+    if (ID != updateRecord->id()) {
         // updateRecord = &m_records->getRecordRefById(ID);
         updateRecord = m_records->getRecordById(ID);
     }
 
-    Serial.printf("Record id %d length %d\n", updateRecord->id(), updateRecord->size());
+    Serial.printf("Record id %d length %d\n", updateRecord->id(),
+                  updateRecord->size());
 
-    // If this record isn't an invalid LIN ID, copy the payload and set valid to true
-    if (updateRecord != nullptr)
-    {
+    // If this record isn't an invalid LIN ID, copy the payload and set valid to
+    // true
+    if (updateRecord != nullptr) {
         memcpy(&updateRecord->writeCache(),
                &_packetBuffer.at(PACKET_BUFFER_PAYLOAD_POS),
                updateRecord->size());
@@ -325,35 +295,32 @@ void LinUdpGateway::cacheUdpMessage(Record *record)
 /**
  * @brief Running the selected node continuously
  * */
-void LinUdpGateway::run()
-{
-    switch (m_config->nodeMode())
-    {
-    case Config::NodeModes::MASTER:
-        runMaster();
-        break;
-    case Config::NodeModes::SLAVE:
-        runSlave();
-        break;
-    default:
-        m_config->log(
-            "You haven't specified node, please select node in the signal "
-            "broker and restart.");
-        delay(500);
-        break;
+void LinUdpGateway::run() {
+    switch (m_config->nodeMode()) {
+        case Config::NodeModes::MASTER:
+            runMaster();
+            break;
+        case Config::NodeModes::SLAVE:
+            runSlave();
+            break;
+        default:
+            m_config->log(
+                "You haven't specified node, please select node in the signal "
+                "broker and restart.");
+            delay(500);
+            break;
     }
 }
 
 /**
  * @brief Running node as a master
  * */
-void LinUdpGateway::runMaster()
-{
+void LinUdpGateway::runMaster() {
     constexpr static int minPacketBufferLength = 5;
 
-    // If we haven't received any new data or if the UDP data isn't greater than 5
-    if (!newData || m_packetBufferLength < minPacketBufferLength)
-    {
+    // If we haven't received any new data or if the UDP data isn't greater than
+    // 5
+    if (!newData || m_packetBufferLength < minPacketBufferLength) {
         return;
     }
 
@@ -364,17 +331,9 @@ void LinUdpGateway::runMaster()
 
     // Find record with the id from packet buffer
     Record *record = m_records->getRecordById(id);
-    if (record == nullptr)
-    {
+    if (record == nullptr) {
         return;
     }
-
-    // Record record = m_records->getRecordRefById(id);
-
-    // if (record.id() == INVALID_LIN_ID)
-    // {
-    // return;
-    // }
 
     // Check if payload is valid
     // It's valid when the packet buffer length is equal to 5 (arbitration
@@ -384,24 +343,20 @@ void LinUdpGateway::runMaster()
          (m_packetBufferLength == (minPacketBufferLength + record->size())));
 
     // If not, don't go further
-    if (!validPayload)
-    {
-        Serial.println("payload not valid");
+    if (!validPayload) {
+        //  Serial.println("payload not valid");
         return;
     }
 
     // If the packet length is equal to 5 and the record isn't a master
     // Then it is an arbitration frame...
-    if (m_packetBufferLength == minPacketBufferLength && !record->master())
-    {
+    if (m_packetBufferLength == minPacketBufferLength && !record->master()) {
         // this is an arbitration frame
         // Send arbitration message (only the header)
         writeHeader(id);
         // wait until the slave respond and consume the result
         readLinAndSendOnUdp(id);
-    }
-    else
-    {
+    } else {
         // this a master frame. Send it all..
         writeHeader(id);
         memcpy(&record->writeCache(),
@@ -413,37 +368,30 @@ void LinUdpGateway::runMaster()
 /**
  * @brief Running node as a slave
  * */
-void LinUdpGateway::runSlave()
-{
-    if (m_lin.serial().available())
-    {
+void LinUdpGateway::runSlave() {
+    if (m_lin.serial().available()) {
         // Get id including parity bits
         uint8_t idByte = synchHeader();
 
         // To check the parity we remove the parity bits and then add them again
-        uint8_t id = idByte & 0x3fu; // Remove parity bits
+        uint8_t id = idByte & 0x3fu;  // Remove parity bits
 
-        if ((Lin::addrParity(id) | id) == idByte) // Add them again and see if it match
+        if ((Lin::addrParity(id) | id) ==
+            idByte)  // Add them again and see if it match
         {
             // send this arbitration frame to the server.
-            // Record record = m_records->getRecordRefById(id);
             Record *record = m_records->getRecordById(id);
 
-            if (record == nullptr)
-            {
+            if (record == nullptr) {
                 return;
             }
 
-            if (record->master() || (!record->cacheValid()))
-            {
+            if (record->master() || (!record->cacheValid())) {
                 sendOverUdp(id);
                 readLinAndSendOnUdp(id);
-            }
-            else
-            {
+            } else {
                 // signal-server should response with the expected payload
-                if (record->cacheValid())
-                {
+                if (record->cacheValid()) {
                     sendOverSerial(record);
                     // this is intentionally after writing to serial which might
                     // be counterintuitive, in order to meet timing req for
@@ -452,9 +400,7 @@ void LinUdpGateway::runSlave()
                 }
             }
             cacheUdpMessage(record);
-        }
-        else
-        {
+        } else {
             m_config->log("Run Slave: Parity failure - do nothing ");
         }
     }
