@@ -1,165 +1,184 @@
-# Lin bus reader and writer
+# LIN
 
-Ardunio Ethernet (alt. arduino micro + ethernet shield) + MCP2004A. Read/write, act as a master or one or many slaves.
+![Components](doc/Pictures/292065030_381798354077153_4080610407932551921_n.jpg)
 
-## Setup
+![Components](doc/Pictures/Box.PNG)
 
-### Arduino Micro based
-![Components](doc/20180904_141332.jpg)
+More images here: [link](doc/Pictures/)
 
-for ENC28J60 connect (Same coloring as in picture)
+## Installation 
 
-| micro |  W5100/ENC28J60 |
-|-----|-----|
-| 5v | VCC |
-| GND | GND |
-| MOSI | SI |
-| D10 | CS |
-| MISO | S0 |
-| SCLK | SCK |
-| RESET | RST |
+### Prerequisites
 
-### Arduino Ethernet based
-![Components](doc/20180509_105715.jpg)
 
-components:
+Download USB drivers for the ESP device, choose driver depending on OS here:
+https://www.olimex.com/Products/IoT/ESP32/ESP32-POE/open-source-hardware 
 
-* Arduino micro
-https://store.arduino.cc/arduino-micro
+To be able to upload this project to your device you need PlatformIO. 
+You can either install it as a [CLI application](https://docs.platformio.org/en/latest/core/index.html#) but the preferred way is to use their extension within an [IDE](https://docs.platformio.org/en/latest/integration/ide/pioide.html#).
 
-* Lin transiver (MCP2004A based)
-http://skpang.co.uk/catalog/linbus-breakout-board-p-1417.html
+I guess that the most popular is to use VS Code so I will use it in the example below.
 
-* Ethernet wiznet w5100
-http://pchbutik.se/nytt-pa-lager/743-w5100-ethernet-module-ethernet-network-module-for-arduino.html?search_query=w510&results=1
-[image](doc/W5100-LAN-Arduino.jpg)
+#### VS Code
 
-Alternative hardware...
+* [VS Code](https://code.visualstudio.com/)
+* [PlatformIO Extension](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide)
 
-* ENC28J60 ethernet module - NOT recommended, drops lots of udp packets!
-https://www.ebay.com/itm/1-Ethernet-Module-ENC28J60-MINI-Ethernet-Network-Module-Arduino-Raspberry-pi-/181357105178
-<br/>
-<br/>
-for this you need to use the following library
-https://github.com/UIPEthernet/UIPEthernet
-<br/>
-<br/>
-
-* Ardunio ethernet - less soldering!
-https://store.arduino.cc/arduino-ethernet-rev3-without-poe
-
-* to be able to program the arduino/only needed for Arduino Ethernet
-https://store.arduino.cc/arduino-usb-2-serial-micro
-
-Yet other alternatives...
-* Arduino uno
-https://store.arduino.cc/arduino-uno-rev3
-* Ardunio ethernet shield
-https://store.arduino.cc/arduino-ethernet-rev3-without-poe
-
-Yet another alternative, probably the leanest Configuration (untested)
-* Arduino Leonard ethernet
-https://www.electrokit.com/produkt/arduino-leonardo-ethernet-med-poe/
+If you have installed the applications above, open this folder with VS Code.  
 
 ## Configuration
 
-### Arduino
+Configure the main.cpp file before uploading to the ESP32. 
+### RibID - device identifier
 
-#### Install software
+The `rotary switch` is used to specify device identifier within the range 0..15. If you need need an id outside of the range you need to modify the source code.
 
-* Install arduino IDE https://www.arduino.cc/en/Main/Software
+>Alternatively you can hardcode, There is a `define` in the main.cpp file that holds the rib_id value for the ESP32. 
 
-* Clone the repository and copy lin.cpp and lin.h https://github.com/AleksandarFilipov/LIN to you arduino library (pick your library folder name) folder. (Inspration: ~/arduino/arduino-1.8.5/libraries/[your libaray])
+>If you have multiple ESP32 that should be connected to the same Beamy Broker, every ESP32 must have a unique rib_id.
 
-* Open the linbus/linbus.ino file in arduino ide. Select propriate port from the tools menu and the upload the software.
+### Master/Slave
 
-### Adafruit Feather 32u4
+`Master/Slave` is automatically set according to the proviced setting in `interfaces.json`
 
-If you are using an **Adafruit Feather 32u4** you need to add Adafruit board definitions to the Arduino IDE.
+>On older PCB you need to set a jumper manually.
 
-`File/Preferences`:
-`Additional Boards Manager URLs: https://adafruit.github.io/arduino-board-index/package_adafruit_index.json`
+### DHCP
 
-`Tools/Board:/Boads Manager...`
-Install "`Adafruit AVR boards`"
-
-Now "`Adafruit Feather 32u4`" should be selectable under `Tools/Board:`
-
-### Upload software to arduino
-
-Once it's configured use Arduino Studio to upload your software. When uploading the software make sure RX is discsonnect, othervise the upload will likely fail.
-
-### Signal Server
-
-Signal sever will configure the node automatically.
-
-https://github.com/volvo-cars/signalbroker-server
-
-Make sure to ports are open on the linux machine hosting the signalserver.
-
-For ubuntu 16.04 you would need to open some port...
-
-```bash
-sudo ufw allow 2013
-sudo ufw allow 2014
-sudo ufw allow 4000
+If you are intended to use DHCP the ethClient connect function should look like this
+```cpp
+ethClient.connect(config);
 ```
 
-And configure your interfaces.json accordingly
+But if you are intended to use static IP, then the connect function should look like this instead
+```cpp
+ethClient.connect(config, false, IPAddress(192, 168, 1, 20), IPAddress(192, 168, 1, 10), IPAddress(255, 255, 255, 0));
+```
 
-```json
+So what does this mean? 
+
+The false flag indicates that DHCP is disabled. 
+
+The first IPAddress is the ESP32 address.
+
+The second IPAdress is the host address (where the beamy broker is running)
+
+The third IPAdress is a subnet address.
+
+Now you are ready to upload this to your device!!
+
+### Modify the interface.json on the server-side
+
+When you have uploaded the firmware to your ESP32-devices and assigned them with unique rib IDs. You need to configure the interfaces.json file on the beamy broker-server side in the following way:
+
+* namespace - Unique namespace name (you will access all necessary data from gRPC API with namespace name)
+* device_identifier - rib ID that you assigned to the device
+* target_host - null if using dhcp, otherwise type in IP address of esp32.
+* server/target port - needs to be a unique port for each device
+* node_mode: master/slave depending on how the device is connected to the LIN bus
+* ldf_file - paste the link to where you have the LDF file
+* schedule_file - same as ldf_file (like 99% of the times)
+* schedule_table_name - type in which scheduler you want to use when you are running the device as the master
+* schedule_autostart - if you are running as master and you want the provided schedule_table to autostart, this value should be true otherwise false
+
+## Slave
+If you are intended to run as a slave, your interface file should look like this (but with your settings and .ldf files). 
+
+#### **Remember to set the right rib_id**
+
+### DHCP
+
+```json 
 {
-      "namespace": "LinSlave",
+      "namespace": "lin_slave",
       "type": "lin",
       "config": {
         "device_identifier": 1,
         "server_port": 2014,
-        "target_host": null,
         "target_port": 2013
       },
-      "device_name": "lin",
       "node_mode": "slave",
+      "ldf_file": "configuration/ldf_files/linone.ldf",
+}
+```
+
+### Static IP
+
+```json 
+{
+      "namespace": "lin_slave",
+      "type": "lin",
+      "config": {
+        "device_identifier": 1,
+        "server_port": 2014,
+        "target_host": "192.168.0.20",
+        "target_port": 2013
+      },
+      "node_mode": "slave",
+      "ldf_file": "configuration/ldf_files/linone.ldf",
+}
+```
+
+## Master
+
+If you are intended to run as a master, your interface file should look like this.
+
+### DHCP
+
+```json 
+{
+      "namespace": "lin_master",
+      "type": "lin",
+      "config": {
+        "device_identifier": 1,
+        "server_port": 2014,
+        "target_port": 2013
+      },
+      "node_mode": "master",
       "ldf_file": "configuration/ldf_files/linone.ldf",
       "schedule_file": "configuration/ldf_files/linone.ldf",
       "schedule_table_name": "linoneSchedule",
-      "schedule_autostart": false
-    },s
-```
-
-In the example above the arduino is set up as a slave. by setting:
-
-```json
-{
-    "node_mode": "master",
-}
-```
-arduino will act as a master. In this case it also make sense to activate the automatic schedule
-
-```json
-{
-    "node_mode": "master",
-    "schedule_autostart": true,
+      "schedule_autostart": true
 }
 ```
 
-## Starting
-Once the arduino is powered on it will start by fetching configuration from the signal server.
-Once the onboard led goes on, the board has fetched its configuration successfully from the signal server. (It will keep trying feting configuration until it succeeds)
+### Static IP
 
-To reload the configuration press the reset button on the top left (see picture above)
-
-## Debugging
-The arduino will by default output it's logs on port 3000, again, make sure to unblock that port in you firewall (check top of ino file to switch port).
-
-Logging can the be traced on ubunto 16.04 by issuing
-
-```bash
-sudo tcpdump udp port 3000 -vv -X
+```json 
+{
+      "namespace": "lin_master",
+      "type": "lin",
+      "config": {
+        "device_identifier": 1,
+        "server_port": 2014,
+        "target_host": "192.168.1.20",
+        "target_port": 2013
+      },
+      "node_mode": "master",
+      "ldf_file": "configuration/ldf_files/linone.ldf",
+      "schedule_file": "configuration/ldf_files/linone.ldf",
+      "schedule_table_name": "linoneSchedule",
+      "schedule_autostart": true
+}
 ```
 
-## Nice to know
-In slave mode the arduino keeps a write buffer which it writes every time the master scheduler queries it. This buffer is never cleared (the same reasoning goes for the signal server), so in practice, if you tampered with the wrong signal you should restart the signal server which will reset the arduino.
+### Debug
 
-## References
+Logging is by default output to serial 
+```
+constexpr bool LOG_TO_SERIAL = true;
+```
+To print logs in beamy broker debug window
+```
+constexpr bool LOG_TO_SERIAL = false;
+```
 
-* [MCP2004A documentation](http://ww1.microchip.com/downloads/en/DeviceDoc/20002230G.pdf)
+### PCB and 3D printable boxes
+
+All ordering information of the RemotiveLIN V1.1 box along with a BOM can be found [here](/doc/Ordering%20Information)
+
+The Box casing can be 3D printed from the [STL files](/doc/Ordering%20Information/STL%20Casing)
+
+The PCB can be manufactured and most parts can be assempled on the PCB by www.jlcpcb.com by uploading the [gerber, BOM and pick and place files](/doc/Ordering%20Information/PCB%20V1.1%20JLCPCB%20Ordering). The parts that are not in stock at JLCPCB needs to be ordered from a seperate supplier and then handsoldered to the PCB. These part can be found in the [BOM Excel file](/doc/Ordering%20Information/Full%20BOM%20V1.1.xlsx).
+
+>Intention is that the software supports older revision of the PCB, if that's not the case please let us know.
